@@ -4,7 +4,7 @@ mod qrcode;
 use qrcode::generate_qr_code;
 
 // Assets
-const TAILWIND_CSS: Asset = asset!("./assets/tailwind.css");
+static CSS: Asset = asset!("/assets/main.css");
 
 fn main() {
     dioxus::launch(App);
@@ -13,7 +13,7 @@ fn main() {
 #[component]
 fn App() -> Element {
     rsx! {
-        document::Link { rel: "stylesheet", href: TAILWIND_CSS }
+        document::Stylesheet { href: CSS }
 
         div {
             class: "bg-gray-800 text-white min-h-screen flex flex-col items-center justify-center font-sans",
