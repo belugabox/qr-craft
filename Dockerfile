@@ -1,4 +1,4 @@
-FROM rust:latest-slim AS planner
+FROM rust:latest AS planner
 WORKDIR /app
 
 # copy manifest
@@ -8,7 +8,7 @@ COPY Cargo.toml Cargo.lock ./
 RUN cargo install cargo-chef --locked
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM rust:latest-slim AS chef
+FROM rust:latest AS chef
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
