@@ -51,12 +51,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-registry-
 
-      - name: Install cargo-binstall via cargo and use it (no fallback)
+      - name: Install cargo-binstall via official installer script and use it
         run: |
-          echo "Installing cargo-binstall via cargo"
-          cargo install --locked cargo-binstall
+          echo "Downloading official cargo-binstall installer script"
+          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh -o /tmp/install-binstall.sh
+          chmod +x /tmp/install-binstall.sh
+          echo "Running cargo-binstall installer"
+          /tmp/install-binstall.sh
 
-          # Use cargo-binstall to install dioxus-cli; no fallback to cargo install
+          # Use cargo-binstall to install dioxus-cli
           echo "Attempting to install dioxus-cli via cargo binstall"
           cargo binstall dioxus-cli
 
