@@ -1,8 +1,9 @@
 FROM rust:latest AS planner
 WORKDIR /app
 
-# copy manifest
+# copy manifest and source files
 COPY Cargo.toml Cargo.lock ./
+COPY src ./src
 
 # Install cargo-chef to prepare recipe
 RUN cargo install cargo-chef --locked
