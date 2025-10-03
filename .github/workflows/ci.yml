@@ -11,6 +11,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Change this value when you want to invalidate the cargo-binstall binary cache
+      CARGO_BINSTALL_VERSION: "v0"
     permissions:
       contents: read
       packages: write
@@ -29,9 +32,33 @@ jobs:
         run: |
           rustup target add wasm32-unknown-unknown || true
 
-      - name: Install dioxus-cli
+      - name: Cache cargo bin (separate, keyed by cargo-binstall version)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+          key: ${{ runner.os }}-cargo-bin-${{ env.CARGO_BINSTALL_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-bin-${{ env.CARGO_BINSTALL_VERSION }}-
+
+      - name: Cache cargo registry and git
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Install cargo-binstall via cargo and use it (no fallback)
         run: |
-          cargo install --locked dioxus-cli || true
+          echo "Installing cargo-binstall via cargo"
+          cargo install --locked cargo-binstall
+
+          # Use cargo-binstall to install dioxus-cli; no fallback to cargo install
+          echo "Attempting to install dioxus-cli via cargo binstall"
+          cargo binstall dioxus-cli
 
       - name: Verify dx build and cargo build
         run: |
