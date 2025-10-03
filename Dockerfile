@@ -1,4 +1,4 @@
-FROM rust:1.72-bullseye AS planner
+FROM rust:latest-slim AS planner
 WORKDIR /app
 
 # copy manifest
@@ -8,8 +8,9 @@ COPY Cargo.toml Cargo.lock ./
 RUN cargo install cargo-chef --locked
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM debian:bookworm-slim AS chef
+FROM rust:latest-slim AS chef
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
     ca-certificates \
     build-essential \
@@ -18,18 +19,11 @@ RUN apt-get update \
     git \
     curl \
     wget \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
-# Install rustup and toolchain
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-RUN rustup default stable && rustup target add wasm32-unknown-unknown || true
-
-# Install dioxus-cli
-RUN cargo install --locked dioxus-cli || true
-
-# copy the prepared recipe
+# copy the prepared recipe from planner stage
 COPY --from=planner /app/recipe.json ./recipe.json
 
 # Install cargo-chef and run cook to precompile dependencies
