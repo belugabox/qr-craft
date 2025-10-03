@@ -9,20 +9,36 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
-    env:
-      # Change this value when you want to invalidate the cargo-binstall binary cache
-      CARGO_BINSTALL_VERSION: "v0"
-    permissions:
-      contents: read
-      packages: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain and dioxus-cli
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Run unit tests
+        run: |
+          # run all tests (this repository has no library target)
+          cargo test --all
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      CARGO_BINSTALL_VERSION: "v0"
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -51,7 +67,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-registry-
 
-      - name: Install cargo-binstall via official installer script and use it
+      - name: Install cargo-binstall via official installer script
         run: |
           echo "Downloading official cargo-binstall installer script"
           curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh -o /tmp/install-binstall.sh
@@ -59,19 +75,29 @@ jobs:
           echo "Running cargo-binstall installer"
           /tmp/install-binstall.sh
 
-          # Use cargo-binstall to install dioxus-cli
-          echo "Attempting to install dioxus-cli via cargo binstall"
+      - name: Use cargo-binstall to install dioxus-cli
+        run: |
           cargo binstall dioxus-cli
 
-      - name: Verify dx is installed and build frontend + backend
+      - name: Install cargo-chef and prepare recipe
         run: |
-          if ! command -v dx >/dev/null 2>&1; then
-            echo "dioxus cli not found — failing CI. Please ensure cargo-binstall or dioxus-cli is available."
-            exit 1
-          fi
+          cargo install cargo-chef --locked
+          cargo chef prepare --recipe-path recipe.json
 
-          dx build --release
-          cargo build --release
+      - name: Install sccache and cache
+        run: |
+          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh -o /tmp/install-binstall.sh
+          bash /tmp/install-binstall.sh
+          cargo binstall sccache
+      - name: Cache sccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/sccache
+          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Set RUSTC_WRAPPER for sccache
+        run: |
+          echo "RUSTC_WRAPPER=$(which sccache)" >> $GITHUB_ENV
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -100,11 +126,16 @@ jobs:
             type=semver,pattern={{major}}
             type=sha
 
+      - name: Prepare recipe.json for Docker build
+        run: |
+          # recipe.json is already prepared by cargo chef earlier in this job
+          ls -la recipe.json || true
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
