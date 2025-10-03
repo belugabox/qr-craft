@@ -10,6 +10,7 @@ pub async fn generate_qr_code(text: String, size: u32, transparent: bool) -> Res
     Ok(data_url)
 }
 
+#[allow(dead_code)]
 pub fn render_qr_png_bytes(text: &str, size: u32, transparent: bool) -> Result<Vec<u8>, String> {
     if text.is_empty() {
         return Err("Le texte ne peut pas être vide.".into());
