@@ -63,13 +63,14 @@ jobs:
           echo "Attempting to install dioxus-cli via cargo binstall"
           cargo binstall dioxus-cli
 
-      - name: Verify dx build and cargo build
+      - name: Verify dx is installed and build frontend + backend
         run: |
-          if command -v dx >/dev/null 2>&1; then
-            dx build --release
-          else
-            echo "dioxus cli not found, skipping dx build"
+          if ! command -v dx >/dev/null 2>&1; then
+            echo "dioxus cli not found — failing CI. Please ensure cargo-binstall or dioxus-cli is available."
+            exit 1
           fi
+
+          dx build --release
           cargo build --release
 
       - name: Set up QEMU
