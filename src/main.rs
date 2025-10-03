@@ -1,65 +1,10 @@
 use dioxus::prelude::*;
 
+mod qrcode;
+use qrcode::generate_qr_code;
+
 // Assets
 const TAILWIND_CSS: Asset = asset!("./assets/tailwind.css");
-
-/// La fonction principale qui s'exécute sur le serveur pour générer le QR code.
-#[server(GenerateQrCode)]
-async fn generate_qr_code(text: String, size: u32, transparent: bool) -> Result<String, ServerFnError> {
-    // Vérifier que le texte n'est pas vide
-    if text.is_empty() {
-        return Err(ServerFnError::new("Le texte ne peut pas être vide."));
-    }
-
-    // Générer les données du QR code
-    let image = qrcode::QrCode::new(text.as_bytes()).unwrap()
-                   .render()
-                   .dark_color(image::Rgba([0, 0, 0, 255]))
-                   .light_color(image::Rgba([255, 255, 255, if transparent { 0 } else { 255 }]))
-                   .quiet_zone(false)          // disable quiet zone (white border)
-                   .min_dimensions(size, size)   // sets minimum image size
-                   .build();
-
-    // Encoder l'image en base64
-    // Certains rendus retournent des pixels dont les composantes sont des i32.
-    // L'encodeur PNG s'attend à des octets (u8). On convertit donc explicitement
-    // chaque pixel en `ImageRgba8` si l'image contient un alpha, sinon en `ImageRgb8`.
-    let mut buffer = Vec::new();
-
-    // Détecter si le pixel retourné contient un canal alpha (longueur >= 4)
-    let sample_pixel = image.get_pixel(0, 0);
-    if sample_pixel.0.len() >= 4 {
-        // Construire une ImageRgba8
-        let rgba8: image::RgbaImage = image::ImageBuffer::from_fn(image.width(), image.height(), |x, y| {
-            let p = image.get_pixel(x, y);
-            let r = (p[0] as i32).clamp(0, 255) as u8;
-            let g = (p[1] as i32).clamp(0, 255) as u8;
-            let b = (p[2] as i32).clamp(0, 255) as u8;
-            let a = (p[3] as i32).clamp(0, 255) as u8;
-            image::Rgba([r, g, b, a])
-        });
-        image::DynamicImage::ImageRgba8(rgba8)
-            .write_to(&mut std::io::Cursor::new(&mut buffer), image::ImageFormat::Png)
-            .map_err(|e| ServerFnError::new(e.to_string()))?;
-    } else {
-        // Construire une ImageRgb8
-        let rgb8: image::RgbImage = image::ImageBuffer::from_fn(image.width(), image.height(), |x, y| {
-            let p = image.get_pixel(x, y);
-            let r = (p[0] as i32).clamp(0, 255) as u8;
-            let g = (p[1] as i32).clamp(0, 255) as u8;
-            let b = (p[2] as i32).clamp(0, 255) as u8;
-            image::Rgb([r, g, b])
-        });
-        image::DynamicImage::ImageRgb8(rgb8)
-            .write_to(&mut std::io::Cursor::new(&mut buffer), image::ImageFormat::Png)
-            .map_err(|e| ServerFnError::new(e.to_string()))?;
-    }
-
-    let base64_image = base64::encode(&buffer);
-    let data_url = format!("data:image/png;base64,{}", base64_image);
-
-    Ok(data_url)
-}
 
 fn main() {
     dioxus::launch(App);
@@ -92,9 +37,11 @@ fn App() -> Element {
 #[component]
 fn QrGenerator() -> Element {
     // Signal pour le texte à encoder
-    let mut text_to_encode = use_signal(String::new);
+    let mut text_to_encode = use_signal(|| "https://example.com".to_string());
     // Signal pour la taille du QR code
     let mut qr_size = use_signal(|| 256u32);
+    // Signal pour activer la transparence
+    let mut transparent = use_signal(|| true);
     // Signal pour le chemin de l'image du QR code généré
     let mut qr_code_path = use_signal(String::new);
     // Signal pour gérer les erreurs
@@ -143,12 +90,27 @@ fn QrGenerator() -> Element {
                     error_message.set("".to_string());
                     qr_code_path.set("".to_string());
 
-                    match generate_qr_code(text_to_encode.read().clone(), *qr_size.read(), true).await {
+                    match generate_qr_code(text_to_encode.read().clone(), *qr_size.read(), *transparent.read()).await {
                         Ok(path) => qr_code_path.set(path),
                         Err(e) => error_message.set(format!("Erreur du serveur: {}", e)),
                     }
                 },
                 "Générer le QR Code"
+            }
+
+            // Option transparence
+            div {
+                class: "flex items-center gap-2",
+                input {
+                    r#type: "checkbox",
+                    checked: "{transparent}",
+                    onchange: move |event| {
+                        let v = event.value();
+                        // event.value() retourne "on" ou "" selon l'input; on peut parser
+                        transparent.set(v == "on" || v == "true");
+                    }
+                }
+                label { class: "text-sm text-gray-300", "Fond transparent" }
             }
 
             // Affichage de l'erreur
