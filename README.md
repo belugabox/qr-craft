@@ -1,3 +1,24 @@
+# QR Craft
+
+A modern QR code generator web application built with Rust and Dioxus.
+
+## Docker
+
+Docker images are automatically published to GitHub Container Registry.
+
+```bash
+# Pull and run the latest image
+docker pull ghcr.io/belugabox/qr-craft:main
+docker run -p 8080:8080 ghcr.io/belugabox/qr-craft:main
+```
+
+Or use Docker Compose:
+```bash
+docker-compose up
+```
+
+See [Docker Release Documentation](.github/DOCKER_RELEASE.md) for more details.
+
 # Development
 
 Your new bare-bones project includes minimal organization with a single `main.rs` file and a few assets.
