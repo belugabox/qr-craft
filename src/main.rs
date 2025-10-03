@@ -5,7 +5,7 @@ const TAILWIND_CSS: Asset = asset!("./assets/tailwind.css");
 
 /// La fonction principale qui s'exécute sur le serveur pour générer le QR code.
 #[server(GenerateQrCode)]
-async fn generate_qr_code(text: String, size: u32) -> Result<String, ServerFnError> {
+async fn generate_qr_code(text: String, size: u32, transparent: bool) -> Result<String, ServerFnError> {
     // Vérifier que le texte n'est pas vide
     if text.is_empty() {
         return Err(ServerFnError::new("Le texte ne peut pas être vide."));
@@ -14,48 +14,46 @@ async fn generate_qr_code(text: String, size: u32) -> Result<String, ServerFnErr
     // Générer les données du QR code
     let image = qrcode::QrCode::new(text.as_bytes()).unwrap()
                    .render()
-                   .dark_color(image::Rgb([0, 0, 128]))
-                   .light_color(image::Rgb([224, 224, 224])) // adjust colors
+                   .dark_color(image::Rgba([0, 0, 0, 255]))
+                   .light_color(image::Rgba([255, 255, 255, if transparent { 0 } else { 255 }]))
                    .quiet_zone(false)          // disable quiet zone (white border)
                    .min_dimensions(size, size)   // sets minimum image size
                    .build();
 
-    // Remplir l'image avec les données du QR code en utilisant des couleurs personnalisées
-    /*for (x, y, pixel) in image.enumerate_pixels_mut() {
-        let module = code[(x as usize, y as usize)];
-        if module == qrcode::Color::Dark {
-            *pixel = image::Rgb([0, 0, 128]); // Bleu foncé pour les modules sombres
-        } else {
-            *pixel = image::Rgb([224, 224, 224]); // Gris clair pour les modules clairs
-        }
-    }
-
-    // Redimensionner l'image selon la taille demandée
-    let scaled_image = if size > width as u32 {
-        image::imageops::resize(&image, size, size, image::imageops::FilterType::Nearest)
-    } else {
-        image
-    };*/
-
     // Encoder l'image en base64
     // Certains rendus retournent des pixels dont les composantes sont des i32.
     // L'encodeur PNG s'attend à des octets (u8). On convertit donc explicitement
-    // chaque pixel en une `ImageRgb8` puis on encode.
-    let dynamic_image = {
+    // chaque pixel en `ImageRgba8` si l'image contient un alpha, sinon en `ImageRgb8`.
+    let mut buffer = Vec::new();
+
+    // Détecter si le pixel retourné contient un canal alpha (longueur >= 4)
+    let sample_pixel = image.get_pixel(0, 0);
+    if sample_pixel.0.len() >= 4 {
+        // Construire une ImageRgba8
+        let rgba8: image::RgbaImage = image::ImageBuffer::from_fn(image.width(), image.height(), |x, y| {
+            let p = image.get_pixel(x, y);
+            let r = (p[0] as i32).clamp(0, 255) as u8;
+            let g = (p[1] as i32).clamp(0, 255) as u8;
+            let b = (p[2] as i32).clamp(0, 255) as u8;
+            let a = (p[3] as i32).clamp(0, 255) as u8;
+            image::Rgba([r, g, b, a])
+        });
+        image::DynamicImage::ImageRgba8(rgba8)
+            .write_to(&mut std::io::Cursor::new(&mut buffer), image::ImageFormat::Png)
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+    } else {
+        // Construire une ImageRgb8
         let rgb8: image::RgbImage = image::ImageBuffer::from_fn(image.width(), image.height(), |x, y| {
             let p = image.get_pixel(x, y);
-            let c0 = (p[0] as i32).clamp(0, 255) as u8;
-            let c1 = (p[1] as i32).clamp(0, 255) as u8;
-            let c2 = (p[2] as i32).clamp(0, 255) as u8;
-            image::Rgb([c0, c1, c2])
+            let r = (p[0] as i32).clamp(0, 255) as u8;
+            let g = (p[1] as i32).clamp(0, 255) as u8;
+            let b = (p[2] as i32).clamp(0, 255) as u8;
+            image::Rgb([r, g, b])
         });
         image::DynamicImage::ImageRgb8(rgb8)
-    };
-
-    let mut buffer = Vec::new();
-    dynamic_image
-        .write_to(&mut std::io::Cursor::new(&mut buffer), image::ImageFormat::Png)
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
+            .write_to(&mut std::io::Cursor::new(&mut buffer), image::ImageFormat::Png)
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+    }
 
     let base64_image = base64::encode(&buffer);
     let data_url = format!("data:image/png;base64,{}", base64_image);
@@ -145,7 +143,7 @@ fn QrGenerator() -> Element {
                     error_message.set("".to_string());
                     qr_code_path.set("".to_string());
 
-                    match generate_qr_code(text_to_encode.read().clone(), *qr_size.read()).await {
+                    match generate_qr_code(text_to_encode.read().clone(), *qr_size.read(), true).await {
                         Ok(path) => qr_code_path.set(path),
                         Err(e) => error_message.set(format!("Erreur du serveur: {}", e)),
                     }
