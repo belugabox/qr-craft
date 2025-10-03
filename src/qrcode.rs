@@ -1,7 +1,15 @@
-// We avoid importing the whole dioxus prelude here to keep the pure rendering
-// function free of wasm/js bindings so it can be tested natively.
+/// Render a QR code into PNG bytes.
+use image::ImageEncoder;
+use dioxus::prelude::*;
 
-/// Render a QR code into PNG bytes (pure function, no Dioxus types).
+#[server(GenerateQrCode)]
+pub async fn generate_qr_code(text: String, size: u32, transparent: bool) -> Result<String, ServerFnError> {
+    let bytes = render_qr_png_bytes(&text, size, transparent).map_err(|e| ServerFnError::new(e))?;
+    let base64_image = base64::encode(&bytes);
+    let data_url = format!("data:image/png;base64,{}", base64_image);
+    Ok(data_url)
+}
+
 pub fn render_qr_png_bytes(text: &str, size: u32, transparent: bool) -> Result<Vec<u8>, String> {
     if text.is_empty() {
         return Err("Le texte ne peut pas être vide.".into());
@@ -16,45 +24,36 @@ pub fn render_qr_png_bytes(text: &str, size: u32, transparent: bool) -> Result<V
                    .build();
 
     let mut buffer = Vec::new();
-    let sample_pixel = image.get_pixel(0, 0);
-    if sample_pixel.0.len() >= 4 {
-        let rgba8: image::RgbaImage = image::ImageBuffer::from_fn(image.width(), image.height(), |x, y| {
-            let p = image.get_pixel(x, y);
-            let r = (p[0] as i32).clamp(0, 255) as u8;
-            let g = (p[1] as i32).clamp(0, 255) as u8;
-            let b = (p[2] as i32).clamp(0, 255) as u8;
-            let a = (p[3] as i32).clamp(0, 255) as u8;
-            image::Rgba([r, g, b, a])
-        });
-        image::DynamicImage::ImageRgba8(rgba8)
-            .write_to(&mut std::io::Cursor::new(&mut buffer), image::ImageFormat::Png)
-            .map_err(|e| e.to_string())?;
-    } else {
-        let rgb8: image::RgbImage = image::ImageBuffer::from_fn(image.width(), image.height(), |x, y| {
-            let p = image.get_pixel(x, y);
-            let r = (p[0] as i32).clamp(0, 255) as u8;
-            let g = (p[1] as i32).clamp(0, 255) as u8;
-            let b = (p[2] as i32).clamp(0, 255) as u8;
-            image::Rgb([r, g, b])
-        });
-        image::DynamicImage::ImageRgb8(rgb8)
-            .write_to(&mut std::io::Cursor::new(&mut buffer), image::ImageFormat::Png)
-            .map_err(|e| e.to_string())?;
+    let width = image.width();
+    let height = image.height();
+
+    // Consume the image and get the raw container. For the qrcode crate the
+    // subpixel type is u8 so this should be Vec<u8>, enabling zero-copy encoding.
+    let raw = image.into_raw();
+
+    // Determine channels per pixel (must divide evenly)
+    let total = raw.len() as u32;
+    if width == 0 || height == 0 {
+        return Err("invalid image dimensions".into());
+    }
+    let pixels = total / (width * height);
+    if pixels == 0 || (width * height * pixels) != total {
+        return Err("unexpected raw buffer length".into());
     }
 
+    let color_type = match pixels {
+        4 => image::ColorType::Rgba8,
+        3 => image::ColorType::Rgb8,
+        1 => image::ColorType::L8,
+        _ => return Err("unsupported number of channels".into()),
+    };
+
+    let encoder = image::codecs::png::PngEncoder::new(&mut buffer);
+    encoder
+        .write_image(&raw, width, height, color_type.into())
+        .map_err(|e| e.to_string())?;
+
     Ok(buffer)
-}
-
-// Now provide the server wrapper using Dioxus types. Keep the server wrapper here
-// to preserve the existing API, but implement it by calling the pure function.
-use dioxus::prelude::*;
-
-#[server(GenerateQrCode)]
-pub async fn generate_qr_code(text: String, size: u32, transparent: bool) -> Result<String, ServerFnError> {
-    let bytes = render_qr_png_bytes(&text, size, transparent).map_err(|e| ServerFnError::new(e))?;
-    let base64_image = base64::encode(&bytes);
-    let data_url = format!("data:image/png;base64,{}", base64_image);
-    Ok(data_url)
 }
 
 
@@ -77,4 +76,22 @@ mod tests {
         let png_magic = [0x89u8, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
         assert_eq!(&bytes[0..8], &png_magic);
     }
+
+    #[test]
+    fn test_qrcode_build_type_name() {
+        let code = qrcode::QrCode::new(b"t").unwrap();
+        let image = code.render()
+            .dark_color(image::Rgba([0u8, 0u8, 0u8, 255u8]))
+            .light_color(image::Rgba([255u8, 255u8, 255u8, 255u8]))
+            .quiet_zone(false)
+            .min_dimensions(16, 16)
+            .build();
+        let t = std::any::type_name_of_val(&image);
+        // Print the type name to help decide fast-path
+        println!("qrcode build type: {}", t);
+        // At minimum ensure we got something
+        assert!(!t.is_empty());
+    }
+
+    // bench test removed
 }

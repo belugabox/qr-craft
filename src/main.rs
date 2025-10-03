@@ -4,7 +4,7 @@ mod qrcode;
 use qrcode::generate_qr_code;
 
 // Assets
-static CSS: Asset = asset!("/assets/main.css");
+static CSS: Asset = asset!("/assets/tailwind.css");
 
 fn main() {
     dioxus::launch(App);
