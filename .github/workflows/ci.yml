@@ -37,6 +37,20 @@ jobs:
         with:
           install_tools: "true"
 
+      - name: Add wasm target
+        run: |
+          rustup target add wasm32-unknown-unknown || true
+
+      - name: Cache dx/wasm build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            target/dx
+            target/wasm32-unknown-unknown
+          key: ${{ runner.os }}-dx-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-dx-${{ hashFiles('**/Cargo.lock') }}-
+
       - name: Bundle web assets
         run: |
           echo "Bundling web assets to web"
