@@ -52,7 +52,6 @@ RUN rustup default stable && rustup target add wasm32-unknown-unknown || true
 # Copy precompiled deps from chef stage
 COPY --from=chef /usr/local/cargo/registry /usr/local/cargo/registry
 COPY --from=chef /usr/local/cargo/git /usr/local/cargo/git
-COPY --from=chef /root/.cargo/bin /root/.cargo/bin
 
 # Copy source
 COPY . .
