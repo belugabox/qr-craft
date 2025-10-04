@@ -10,6 +10,9 @@ fn main() {
     dioxus::launch(App);
 }
 
+// Embed the crate version at compile time
+const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[component]
 fn App() -> Element {
     rsx! {
@@ -17,19 +20,27 @@ fn App() -> Element {
 
         div {
             class: "bg-gray-800 text-white min-h-screen flex flex-col items-center justify-center font-sans",
-            
+
             div {
                 class: "bg-gray-900 p-8 rounded-lg shadow-2xl w-full max-w-md",
 
-                // Titre
-                h1 {
-                    class: "text-4xl font-bold mb-6 text-center text-teal-400",
-                    "QR Craft"
+                // Titre + version (version alignée en bas et très discrète)
+                div {
+                    class: "flex items-end justify-center gap-3 mb-6",
+                    h1 {
+                        class: "text-4xl font-bold text-teal-400",
+                        "QR Craft"
+                    }
+                    span {
+                        class: "text-xs text-gray-400",
+                        {format!("v{}", APP_VERSION)}
+                    }
                 }
 
                 // Intégrer le composant générateur
                 QrGenerator {}
             }
+            // (removed duplicate bottom-right badge)
         }
     }
 }
@@ -128,7 +139,7 @@ fn QrGenerator() -> Element {
                     img {
                         class: match *qr_size.read() {
                             128 => "w-32 h-32",
-                            256 => "w-64 h-64", 
+                            256 => "w-64 h-64",
                             512 => "w-80 h-80",
                             1024 => "w-96 h-96",
                             _ => "w-64 h-64"
