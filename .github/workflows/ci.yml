@@ -87,7 +87,7 @@ jobs:
 
       - name: Install cargo-chef and prepare recipe
         run: |
-          cargo install cargo-chef --locked
+          cargo install cargo-chef --locked --force
           cargo chef prepare --recipe-path recipe.json
 
       - name: Install sccache and cache
