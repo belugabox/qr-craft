@@ -1,74 +1,32 @@
-FROM rust:latest AS planner
+FROM debian:bookworm-slim
+
+# Small runtime image that expects a bundled `web` folder in the docker build context.
+# Use `dx bundle --platform web` to produce a `web` folder (containing `public/` and
+# the server binary) and then build this image from the repo root:
+#
+#   docker build -f Dockerfile.runtime -t qr-craft:latest .
+#
+# The build context should include a `web` directory. Example:
+#   target/dx/qr-craft/release/web -> ./web
+#
+ENV IP=0.0.0.0
+ENV PORT=8080
+
 WORKDIR /app
 
-# copy manifest and source files
-COPY Cargo.toml Cargo.lock ./
-COPY src ./src
+# Copy the bundled web assets and server binary. The build will succeed even if one
+# of these files is missing; the start script will fail with a helpful message.
+COPY web/public /app/public
+COPY web/server /app/server
+COPY web/server.exe /app/server.exe
 
-# Install cargo-chef to prepare recipe
-RUN cargo install cargo-chef --locked
-RUN cargo chef prepare --recipe-path recipe.json
+RUN chmod +x /app/server /app/server.exe || true
 
-FROM rust:latest AS chef
-RUN apt-get update \
-    && apt-get upgrade -y \
-    && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    build-essential \
-    pkg-config \
-    libssl-dev \
-    git \
-    curl \
-    wget \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-WORKDIR /app
+# Expose the configured port (default 8080). Users can override PORT at runtime.
+EXPOSE ${PORT}
 
-# copy the prepared recipe from planner stage
-COPY --from=planner /app/recipe.json ./recipe.json
+# Copy helper start script and make executable
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
-# Install cargo-chef and run cook to precompile dependencies
-RUN cargo install cargo-chef --locked
-RUN cargo chef cook --release --recipe-path recipe.json
-
-# Ensure git directory exists for COPY (even if no git dependencies)
-RUN mkdir -p /usr/local/cargo/git
-
-FROM debian:bookworm-slim AS build
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    build-essential \
-    pkg-config \
-    libssl-dev \
-    git \
-    curl \
-    wget \
-    && rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-
-# Install rustup and toolchain
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-RUN rustup default stable && rustup target add wasm32-unknown-unknown || true
-
-# Copy precompiled deps from chef stage
-COPY --from=chef /usr/local/cargo/registry /usr/local/cargo/registry
-COPY --from=chef /usr/local/cargo/git /usr/local/cargo/git
-
-# Copy source
-COPY . .
-
-# Build frontend via dioxus-cli
-RUN if command -v dx >/dev/null 2>&1; then dx build --release; else echo "dx not available"; fi
-
-# Build release binary
-RUN cargo build --release
-
-# Reduce binary size (strip symbols)
-RUN strip /app/target/release/qr-craft || true
-
-FROM gcr.io/distroless/cc-debian11
-COPY --from=build /app/target/release/qr-craft /usr/local/bin/qr-craft
-EXPOSE 8080
-ENTRYPOINT ["/usr/local/bin/qr-craft"]
+ENTRYPOINT ["/app/start.sh"]

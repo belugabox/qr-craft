@@ -79,6 +79,12 @@ jobs:
         run: |
           cargo binstall dioxus-cli
 
+      - name: Bundle web assets
+        run: |
+          echo "Bundling web assets to web"
+          $HOME/.cargo/bin/dx bundle --platform web --release --out-dir web
+          ls -la web || true
+
       - name: Install cargo-chef and prepare recipe
         run: |
           cargo install cargo-chef --locked
