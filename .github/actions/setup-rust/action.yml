@@ -1,12 +1,12 @@
 name: "Setup Rust (composite)"
 description: "Install Rust toolchain, restore caches and optionally install common cargo-based tools (cargo-binstall, sccache, cargo-chef, dioxus-cli)."
+inputs:
+  install_tools:
+    description: "Whether to install extra tools (cargo-binstall, sccache, cargo-chef, dioxus-cli)"
+    required: false
+    default: "true"
 runs:
   using: "composite"
-  inputs:
-    install_tools:
-      description: "Whether to install extra tools (cargo-binstall, sccache, cargo-chef, dioxus-cli)"
-      required: false
-      default: "true"
   steps:
     - name: Set up Rust toolchain
       uses: actions-rs/toolchain@v1
@@ -44,6 +44,7 @@ runs:
 
     - name: Install cargo-binstall (installer)
       if: ${{ inputs.install_tools == 'true' }}
+      shell: bash
       run: |
         echo "Downloading official cargo-binstall installer script"
         curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh -o /tmp/install-binstall.sh
@@ -53,6 +54,7 @@ runs:
 
     - name: Install common cargo tools (sccache, cargo-chef, dioxus-cli)
       if: ${{ inputs.install_tools == 'true' }}
+      shell: bash
       run: |
         # Use cargo binstall to install faster, fallback to cargo install where needed
         set -eux
