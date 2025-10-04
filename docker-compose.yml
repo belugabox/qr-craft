@@ -1,7 +1,6 @@
-version: '3.8'
 services:
   qr-craft:
-    image: qr-craft:latest
+    image: ghcr.io/belugabox/qr-craft:main
     build: .
     ports:
       - "8080:8080"
