@@ -15,11 +15,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Setup Rust and common tools
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: stable
-          override: true
+          install_tools: "false"
 
       - name: Run unit tests
         run: |
@@ -33,23 +32,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Setup Rust and common tools
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: stable
-          override: true
-
-      - name: Install cargo-binstall via official installer script
-        run: |
-          echo "Downloading official cargo-binstall installer script"
-          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh -o /tmp/install-binstall.sh
-          chmod +x /tmp/install-binstall.sh
-          echo "Running cargo-binstall installer"
-          /tmp/install-binstall.sh
-
-      - name: Use cargo-binstall to install dioxus-cli
-        run: |
-          cargo binstall dioxus-cli
+          install_tools: "true"
 
       - name: Bundle web assets
         run: |
@@ -70,15 +56,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Setup Rust and common tools
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: stable
-          override: true
+          install_tools: "true"
 
-      - name: Install cargo-chef and prepare recipe
+      - name: Prepare recipe.json
         run: |
-          cargo install cargo-chef --locked --force
           cargo chef prepare --recipe-path recipe.json
 
       - name: Upload recipe.json
@@ -92,6 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       all_tags: ${{ steps.tags.outputs.all_tags }}
+      labels: ${{ steps.meta.outputs.labels }}
     steps:
       - name: Extract Docker metadata
         id: meta
@@ -167,19 +152,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -187,6 +159,6 @@ jobs:
           platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ needs.image-tags.outputs.all_tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          labels: ${{ needs.image-tags.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

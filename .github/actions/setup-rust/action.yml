@@ -1,0 +1,68 @@
+name: "Setup Rust (composite)"
+description: "Install Rust toolchain, restore caches and optionally install common cargo-based tools (cargo-binstall, sccache, cargo-chef, dioxus-cli)."
+runs:
+  using: "composite"
+  inputs:
+    install_tools:
+      description: "Whether to install extra tools (cargo-binstall, sccache, cargo-chef, dioxus-cli)"
+      required: false
+      default: "true"
+  steps:
+    - name: Set up Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Cache cargo registry and git
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-registry-
+
+    - name: Cache cargo bin (separate, keyed by cargo-binstall version)
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin
+        key: ${{ runner.os }}-cargo-bin-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-bin-
+
+    - name: Cache rustup
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.rustup
+        key: ${{ runner.os }}-rustup-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-rustup-
+
+    - name: Install cargo-binstall (installer)
+      if: ${{ inputs.install_tools == 'true' }}
+      run: |
+        echo "Downloading official cargo-binstall installer script"
+        curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh -o /tmp/install-binstall.sh
+        chmod +x /tmp/install-binstall.sh
+        echo "Running cargo-binstall installer"
+        /tmp/install-binstall.sh
+
+    - name: Install common cargo tools (sccache, cargo-chef, dioxus-cli)
+      if: ${{ inputs.install_tools == 'true' }}
+      run: |
+        # Use cargo binstall to install faster, fallback to cargo install where needed
+        set -eux
+        if command -v cargo-binstall >/dev/null 2>&1; then
+          cargo binstall sccache || true
+          cargo binstall dioxus-cli || true
+          # cargo-chef may not be available via binstall; install via cargo if needed
+          cargo install cargo-chef --locked --force || true
+        else
+          cargo install sccache --locked || true
+          cargo install dioxus-cli --locked || true
+          cargo install cargo-chef --locked --force || true
+        fi
