@@ -14,13 +14,19 @@ ENV PORT=8080
 
 WORKDIR /app
 
-# Copy the bundled web assets and server binary. The build will succeed even if one
-# of these files is missing; the start script will fail with a helpful message.
-COPY web/public /app/public
-COPY web/server /app/server
-COPY web/server.exe /app/server.exe
+# Copy the bundled web assets and any server binaries that exist. On Linux CI the
+# bundle will typically contain `web/server` (no .exe). Trying to `COPY` a missing
+# file causes buildx to fail during cache-key computation, so we copy the whole
+# `web` dir and then move/adjust files conditionally.
+COPY web /app/web
 
-RUN chmod +x /app/server /app/server.exe || true
+# If present, move server binaries into /app and make them executable. The
+# conditional commands are safe if a file is missing.
+RUN set -euo pipefail; \
+    if [ -f /app/web/server ]; then mv /app/web/server /app/server; fi; \
+    if [ -f /app/web/server.exe ]; then mv /app/web/server.exe /app/server.exe; fi; \
+    if [ -f /app/server ] || [ -f /app/server.exe ]; then chmod +x /app/server /app/server.exe || true; fi; \
+    if [ -d /app/web/public ]; then rm -rf /app/public && mv /app/web/public /app/public; fi
 
 # Expose the configured port (default 8080). Users can override PORT at runtime.
 EXPOSE ${PORT}
