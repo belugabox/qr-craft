@@ -26,14 +26,9 @@ jobs:
           # run all tests (this repository has no library target)
           cargo test --all
 
-  build:
+  bundle-web:
     needs: test
     runs-on: ubuntu-latest
-    env:
-      CARGO_BINSTALL_VERSION: "v0"
-    permissions:
-      contents: read
-      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,29 +38,6 @@ jobs:
         with:
           toolchain: stable
           override: true
-
-      - name: Add wasm target
-        run: |
-          rustup target add wasm32-unknown-unknown || true
-
-      - name: Cache cargo bin (separate, keyed by cargo-binstall version)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin
-          key: ${{ runner.os }}-cargo-bin-${{ env.CARGO_BINSTALL_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-bin-${{ env.CARGO_BINSTALL_VERSION }}-
-
-      - name: Cache cargo registry and git
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-registry-
 
       - name: Install cargo-binstall via official installer script
         run: |
@@ -85,25 +57,101 @@ jobs:
           $HOME/.cargo/bin/dx bundle --platform web --release --out-dir web
           ls -la web || true
 
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: web
+
+  prepare-recipe:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
       - name: Install cargo-chef and prepare recipe
         run: |
           cargo install cargo-chef --locked --force
           cargo chef prepare --recipe-path recipe.json
 
-      - name: Install sccache and cache
-        run: |
-          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh -o /tmp/install-binstall.sh
-          bash /tmp/install-binstall.sh
-          cargo binstall sccache
-      - name: Cache sccache
-        uses: actions/cache@v4
+      - name: Upload recipe.json
+        uses: actions/upload-artifact@v4
         with:
-          path: ~/.cache/sccache
-          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          name: recipe
+          path: recipe.json
 
-      - name: Set RUSTC_WRAPPER for sccache
+  image-tags:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      all_tags: ${{ steps.tags.outputs.all_tags }}
+    steps:
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+
+      - name: Prepare docker tags
+        id: tags
         run: |
-          echo "RUSTC_WRAPPER=$(which sccache)" >> $GITHUB_ENV
+          meta_tags="${{ steps.meta.outputs.tags }}"
+          extra_tags=""
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            extra_tags="ghcr.io/${{ github.repository }}:nightly"
+          fi
+          if [[ "${GITHUB_REF}" =~ ^refs/tags/v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            ver="${GITHUB_REF#refs/tags/}"
+            extra_tags="${extra_tags} ghcr.io/${{ github.repository }}:latest ghcr.io/${{ github.repository }}:${ver}"
+          fi
+          all_tags="${meta_tags} ${extra_tags}"
+          read -a arr <<< "$all_tags"
+          declare -A seen
+          out=""
+          for t in "${arr[@]}"; do
+            if [[ -n "$t" && -z "${seen[$t]}" ]]; then
+              seen[$t]=1
+              out+="$t "
+            fi
+          done
+          out="${out%% }"
+          echo "all_tags=$out" >> $GITHUB_OUTPUT
+
+  build-and-push-image:
+    needs: [bundle-web, prepare-recipe, image-tags]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download web artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: web
+
+      - name: Download recipe.json
+        uses: actions/download-artifact@v4
+        with:
+          name: recipe
+          path: .
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -132,18 +180,13 @@ jobs:
             type=semver,pattern={{major}}
             type=sha
 
-      - name: Prepare recipe.json for Docker build
-        run: |
-          # recipe.json is already prepared by cargo chef earlier in this job
-          ls -la recipe.json || true
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ needs.image-tags.outputs.all_tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
