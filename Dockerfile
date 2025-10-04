@@ -31,6 +31,9 @@ COPY --from=planner /app/recipe.json ./recipe.json
 RUN cargo install cargo-chef --locked
 RUN cargo chef cook --release --recipe-path recipe.json
 
+# Ensure git directory exists for COPY (even if no git dependencies)
+RUN mkdir -p /usr/local/cargo/git
+
 FROM debian:bookworm-slim AS build
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
