@@ -1,8 +1,9 @@
 FROM rust:latest AS planner
 WORKDIR /app
 
-# copy manifest
+# copy manifest and source files
 COPY Cargo.toml Cargo.lock ./
+COPY src ./src
 
 # Install cargo-chef to prepare recipe
 RUN cargo install cargo-chef --locked
@@ -30,6 +31,9 @@ COPY --from=planner /app/recipe.json ./recipe.json
 RUN cargo install cargo-chef --locked
 RUN cargo chef cook --release --recipe-path recipe.json
 
+# Ensure git directory exists for COPY (even if no git dependencies)
+RUN mkdir -p /usr/local/cargo/git
+
 FROM debian:bookworm-slim AS build
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -51,7 +55,6 @@ RUN rustup default stable && rustup target add wasm32-unknown-unknown || true
 # Copy precompiled deps from chef stage
 COPY --from=chef /usr/local/cargo/registry /usr/local/cargo/registry
 COPY --from=chef /usr/local/cargo/git /usr/local/cargo/git
-COPY --from=chef /root/.cargo/bin /root/.cargo/bin
 
 # Copy source
 COPY . .
