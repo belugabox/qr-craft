@@ -1,5 +1,5 @@
-use crate::qrcode::{delete_saved, list_saved, load_saved};
-use crate::UIQr;
+use crate::models::qr_code::UIQr;
+use crate::services::qr_code::{delete_saved, list_saved, load_saved};
 use dioxus::prelude::*;
 
 #[component]
@@ -17,7 +17,7 @@ pub fn SavedQrList(ui: Signal<UIQr>, saved: Signal<Vec<String>>) -> Element {
     rsx! {
         nav { class: "w-64 p-4 bg-gray-800",
             h2 { class: "mb-2 text-lg", "Saved QRs" }
-            button { class: "p-2 bg-teal-600 rounded", onclick: move |_| {
+            button { class: "p-2 bg-teal-600 rounded hover:bg-teal-500 transition-colors", onclick: move |_| {
                 let saved = saved.clone(); to_owned![saved];
                 async move {
                     if let Ok(list) = list_saved().await {
@@ -42,7 +42,7 @@ pub fn SavedQrList(ui: Signal<UIQr>, saved: Signal<Vec<String>>) -> Element {
                                         let ui = ui.clone(); let name_for_load = name_for_load.clone(); to_owned![ui];
                                         async move {
                                             if let Ok(s) = load_saved(name_for_load).await {
-                                                ui.set(UIQr { text: s.text, size: s.size, transparent: s.transparent, image_data: format!("data:image/png;base64,{}", s.image_base64) });
+                                                ui.set(UIQr { text: s.text, size: s.size, transparent: s.transparent, image_data: s.image_data.clone() });
                                             }
                                         }
                                     },

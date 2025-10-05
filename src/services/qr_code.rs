@@ -1,9 +1,12 @@
 use dioxus::prelude::*;
 /// Render a QR code into PNG bytes.
 use image::ImageEncoder;
-use serde::{Deserialize, Serialize};
+#[allow(unused_imports)]
 use std::fs;
+#[allow(unused_imports)]
 use std::path::Path;
+
+use crate::models::qr_code::SavedQr;
 
 #[server(GenerateQrCode)]
 pub async fn generate_qr_code(
@@ -15,15 +18,6 @@ pub async fn generate_qr_code(
     let base64_image = base64::encode(&bytes);
     let data_url = format!("data:image/png;base64,{}", base64_image);
     Ok(data_url)
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SavedQr {
-    pub id: String,
-    pub text: String,
-    pub size: u32,
-    pub transparent: bool,
-    pub image_base64: String,
 }
 
 #[server(SaveQr)]
