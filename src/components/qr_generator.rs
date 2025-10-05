@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 use js_sys::Date;
 
 #[component]
-pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<String>>) -> Element {
+pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
     rsx! {
         div { class: "flex-1 p-8",
             div { class: "space-y-3",

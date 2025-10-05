@@ -3,7 +3,7 @@
 use crate::components::qr_generator::QrGenerator;
 use crate::components::saved_qr_list::SavedQrList;
 use crate::config::constants;
-use crate::models::qr_code::UIQr;
+use crate::models::qr_code::{SavedQr, UIQr};
 use dioxus::prelude::*;
 
 static CSS: Asset = asset!("/assets/tailwind.css");
@@ -16,18 +16,22 @@ pub fn App() -> Element {
         transparent: false,
         image_data: String::new(),
     });
-    let saved = use_signal(|| Vec::<String>::new());
+    let saved = use_signal(|| Vec::<SavedQr>::new());
 
     rsx! {
         document::Stylesheet { href: CSS }
         div {
-            class: "flex flex-col min-h-screen bg-gray-800 text-white font-sans",
+            class: "flex flex-col min-h-screen bg-gray-900 text-white font-sans",
 
             header {
-                class: "sticky z-50 top-0 p-4 bg-gray-900",
+                class: "sticky z-50 top-0 p-4 bg-gray-900 flex justify-between items-center",
                 h1 {
                     class: "text-4xl font-bold text-teal-400",
                     "{constants::APP_NAME}"
+                }
+                span {
+                    class: "text-xs text-gray-400",
+                    "v{env!(\"CARGO_PKG_VERSION\")}"
                 }
             }
 
@@ -35,13 +39,6 @@ pub fn App() -> Element {
                 class: "flex-grow",
                 SavedQrList { ui, saved }
                 QrGenerator { ui, saved }
-            }
-
-            footer { class: "sticky z-50 bottom-0 p-4 bg-gray-900",
-                span {
-                    class: "text-xs text-gray-400",
-                    "v{env!(\"CARGO_PKG_VERSION\")}"
-                }
             }
         }
     }

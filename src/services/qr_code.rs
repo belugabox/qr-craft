@@ -35,7 +35,7 @@ pub async fn save_qr(qr: SavedQr) -> Result<String, ServerFnError> {
 }
 
 #[server(ListSaved)]
-pub async fn list_saved() -> Result<Vec<String>, ServerFnError> {
+pub async fn list_saved() -> Result<Vec<SavedQr>, ServerFnError> {
     let data_dir = Path::new("data");
     if !data_dir.exists() {
         return Ok(vec![]);
@@ -44,7 +44,11 @@ pub async fn list_saved() -> Result<Vec<String>, ServerFnError> {
     for entry in fs::read_dir(data_dir).map_err(|e| ServerFnError::new(e.to_string()))? {
         let entry = entry.map_err(|e| ServerFnError::new(e.to_string()))?;
         if let Some(name) = entry.path().file_name().and_then(|n| n.to_str()) {
-            res.push(name.to_string());
+            let path = entry.path();
+            let s = fs::read_to_string(&path).map_err(|e| ServerFnError::new(e.to_string()))?;
+            let qr: SavedQr =
+                serde_json::from_str(&s).map_err(|e| ServerFnError::new(e.to_string()))?;
+            res.push(qr);
         }
     }
     Ok(res)
