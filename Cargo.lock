@@ -3750,6 +3750,7 @@ dependencies = [
  "fastrand",
  "futures",
  "image",
+ "js-sys",
  "qrcode",
  "serde",
  "serde_json",

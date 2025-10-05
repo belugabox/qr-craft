@@ -1,6 +1,7 @@
 use crate::models::qr_code::{SavedQr, UIQr};
 use crate::services::qr_code::{generate_qr_code, list_saved, save_qr};
 use dioxus::prelude::*;
+use js_sys::Date;
 
 #[component]
 pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<String>>) -> Element {
@@ -68,7 +69,7 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<String>>) -> Element {
                                 text: cur.text.clone(),
                                 size: cur.size,
                                 transparent: cur.transparent,
-                                created_at: format!("{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()),
+                                created_at: format!("{}", (Date::now() / 1000.0) as u64),
                                 image_data: base64
                             };
                             if let Ok(_) = save_qr(saved_q).await {

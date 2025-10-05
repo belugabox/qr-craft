@@ -42,7 +42,7 @@ pub fn SavedQrList(ui: Signal<UIQr>, saved: Signal<Vec<String>>) -> Element {
                                         let ui = ui.clone(); let name_for_load = name_for_load.clone(); to_owned![ui];
                                         async move {
                                             if let Ok(s) = load_saved(name_for_load).await {
-                                                ui.set(UIQr { text: s.text, size: s.size, transparent: s.transparent, image_data: s.image_data.clone() });
+                                                ui.set(UIQr { text: s.text, size: s.size, transparent: s.transparent, image_data: format!("data:image/png;base64,{}", s.image_data) });
                                             }
                                         }
                                     },
