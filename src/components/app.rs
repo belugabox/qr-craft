@@ -24,7 +24,7 @@ pub fn App() -> Element {
             class: "flex flex-col min-h-screen bg-gray-800 text-white font-sans",
 
             header {
-                class: "sticky z-50 top-0 p-4 bg-gray-800",
+                class: "sticky z-50 top-0 p-4 bg-gray-900",
                 h1 {
                     class: "text-4xl font-bold text-teal-400",
                     "{constants::APP_NAME}"
@@ -37,7 +37,7 @@ pub fn App() -> Element {
                 QrGenerator { ui, saved }
             }
 
-            footer { class: "sticky z-50 bottom-0 p-4 bg-gray-800",
+            footer { class: "sticky z-50 bottom-0 p-4 bg-gray-900",
                 span {
                     class: "text-xs text-gray-400",
                     "v{env!(\"CARGO_PKG_VERSION\")}"

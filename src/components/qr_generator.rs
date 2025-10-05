@@ -7,7 +7,7 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<String>>) -> Element {
     rsx! {
         div { class: "flex-1 p-8",
             div { class: "space-y-3",
-                input { class: "p-2 w-full bg-gray-800 rounded",
+                input { class: "p-2 w-full",
                     placeholder: "Text or URL...",
                     value: "{ui.read().text}",
                     oninput: move |e| {
@@ -18,7 +18,7 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<String>>) -> Element {
                 }
 
                 div { class: "flex items-center gap-4",
-                    select { class: "p-2 bg-gray-800 rounded",
+                    select { class: "p-2",
                         value: "{ui.read().size}",
                         onchange: move |e| {
                             if let Ok(s) = e.value().parse::<u32>() {
@@ -79,7 +79,7 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<String>>) -> Element {
                 }
 
                 if !ui.read().image_data.is_empty() {
-                    div { class: "mt-4 bg-white p-3 rounded text-black",
+                    div { class: "mt-4 p-3 rounded text-black",
                         img { src: "{ui.read().image_data}" }
                     }
                 }
