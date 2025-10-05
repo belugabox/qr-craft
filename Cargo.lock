@@ -3746,10 +3746,13 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "dioxus",
+ "dioxus-desktop",
  "fastrand",
  "futures",
  "image",
  "qrcode",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

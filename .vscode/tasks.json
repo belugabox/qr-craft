@@ -103,7 +103,7 @@
     },
     {
       "label": "dev: serve",
-      "dependsOn": ["dx serve (web)", "tailwind: watch"],
+      "dependsOn": ["tailwind: watch", "dx serve (web)"],
       "dependsOrder": "parallel",
       "problemMatcher": [],
       "group": "build"

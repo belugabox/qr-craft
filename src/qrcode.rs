@@ -1,13 +1,74 @@
+use dioxus::prelude::*;
 /// Render a QR code into PNG bytes.
 use image::ImageEncoder;
-use dioxus::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
 
 #[server(GenerateQrCode)]
-pub async fn generate_qr_code(text: String, size: u32, transparent: bool) -> Result<String, ServerFnError> {
+pub async fn generate_qr_code(
+    text: String,
+    size: u32,
+    transparent: bool,
+) -> Result<String, ServerFnError> {
     let bytes = render_qr_png_bytes(&text, size, transparent).map_err(|e| ServerFnError::new(e))?;
     let base64_image = base64::encode(&bytes);
     let data_url = format!("data:image/png;base64,{}", base64_image);
     Ok(data_url)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SavedQr {
+    pub id: String,
+    pub text: String,
+    pub size: u32,
+    pub transparent: bool,
+    pub image_base64: String,
+}
+
+#[server(SaveQr)]
+pub async fn save_qr(qr: SavedQr) -> Result<String, ServerFnError> {
+    // ensure data dir
+    let data_dir = Path::new("data");
+    if !data_dir.exists() {
+        fs::create_dir_all(data_dir).map_err(|e| ServerFnError::new(e.to_string()))?;
+    }
+
+    let filename = format!("data/{}.json", qr.id);
+    let json = serde_json::to_string_pretty(&qr).map_err(|e| ServerFnError::new(e.to_string()))?;
+    fs::write(&filename, json).map_err(|e| ServerFnError::new(e.to_string()))?;
+    Ok(filename)
+}
+
+#[server(ListSaved)]
+pub async fn list_saved() -> Result<Vec<String>, ServerFnError> {
+    let data_dir = Path::new("data");
+    if !data_dir.exists() {
+        return Ok(vec![]);
+    }
+    let mut res = vec![];
+    for entry in fs::read_dir(data_dir).map_err(|e| ServerFnError::new(e.to_string()))? {
+        let entry = entry.map_err(|e| ServerFnError::new(e.to_string()))?;
+        if let Some(name) = entry.path().file_name().and_then(|n| n.to_str()) {
+            res.push(name.to_string());
+        }
+    }
+    Ok(res)
+}
+
+#[server(LoadSaved)]
+pub async fn load_saved(filename: String) -> Result<SavedQr, ServerFnError> {
+    let path = Path::new("data").join(filename);
+    let s = fs::read_to_string(&path).map_err(|e| ServerFnError::new(e.to_string()))?;
+    let qr: SavedQr = serde_json::from_str(&s).map_err(|e| ServerFnError::new(e.to_string()))?;
+    Ok(qr)
+}
+
+#[server(DeleteSaved)]
+pub async fn delete_saved(filename: String) -> Result<(), ServerFnError> {
+    let path = Path::new("data").join(filename);
+    fs::remove_file(&path).map_err(|e| ServerFnError::new(e.to_string()))?;
+    Ok(())
 }
 
 #[allow(dead_code)]
@@ -16,13 +77,19 @@ pub fn render_qr_png_bytes(text: &str, size: u32, transparent: bool) -> Result<V
         return Err("Le texte ne peut pas être vide.".into());
     }
 
-    let image = qrcode::QrCode::new(text.as_bytes()).map_err(|e| e.to_string())?
-                   .render()
-                   .dark_color(image::Rgba([0, 0, 0, 255]))
-                   .light_color(image::Rgba([255, 255, 255, if transparent { 0 } else { 255 }]))
-                   .quiet_zone(false)
-                   .min_dimensions(size, size)
-                   .build();
+    let image = qrcode::QrCode::new(text.as_bytes())
+        .map_err(|e| e.to_string())?
+        .render()
+        .dark_color(image::Rgba([0, 0, 0, 255]))
+        .light_color(image::Rgba([
+            255,
+            255,
+            255,
+            if transparent { 0 } else { 255 },
+        ]))
+        .quiet_zone(false)
+        .min_dimensions(size, size)
+        .build();
 
     let mut buffer = Vec::new();
     let width = image.width();
@@ -57,11 +124,10 @@ pub fn render_qr_png_bytes(text: &str, size: u32, transparent: bool) -> Result<V
     Ok(buffer)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_render_qr_png_bytes_basic() {
         let bytes = render_qr_png_bytes("hello", 128, false).expect("render failed");
@@ -81,7 +147,8 @@ mod tests {
     #[test]
     fn test_qrcode_build_type_name() {
         let code = qrcode::QrCode::new(b"t").unwrap();
-        let image = code.render()
+        let image = code
+            .render()
             .dark_color(image::Rgba([0u8, 0u8, 0u8, 255u8]))
             .light_color(image::Rgba([255u8, 255u8, 255u8, 255u8]))
             .quiet_zone(false)
