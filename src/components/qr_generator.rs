@@ -51,7 +51,7 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
 
                 div { class: "flex gap-2",
                     button {
-                        class: "p-2 bg-teal-600 rounded hover:bg-teal-500 transition-colors",
+                        class: "p-2 btn-primary",
                         onclick: move |_| {
                             let ui = ui;
                             to_owned![ui];
@@ -73,7 +73,7 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
                     }
 
                     button {
-                        class: "p-2 bg-gray-200 text-black rounded hover:bg-gray-100 transition-colors",
+                        class: "p-2 btn-secondary",
                         onclick: move |_| {
                             let ui = ui;
                             let saved = saved;

@@ -17,7 +17,7 @@ pub fn SavedQrList(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
     rsx! {
         nav { class: "p-4",
             button {
-                class: "p-2 bg-teal-600 rounded hover:bg-teal-500 transition-colors",
+                class: "p-2 btn-primary",
                 onclick: move |_| {
                     let saved = saved;
                     to_owned![saved];
@@ -44,7 +44,7 @@ pub fn SavedQrList(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
                                 }
                                 span { class: "flex-1 truncate text-sm", "{qr.text}" }
                                 button {
-                                    class: "px-2 py-1 bg-teal-600 rounded text-xs hover:bg-teal-500 transition-colors",
+                                    class: "px-2 py-1 btn-primary text-xs",
                                     onclick: move |_| {
                                         let ui = ui;
                                         let qr_for_load = qr_for_load.clone();
@@ -66,9 +66,20 @@ pub fn SavedQrList(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
                                         let qr_for_delete = qr_for_delete.clone();
                                         to_owned![saved];
                                         async move {
-                                            if delete_saved(qr_for_delete.id).await.is_ok() {
-                                                if let Ok(list) = list_saved().await {
-                                                    saved.set(list);
+                                            match delete_saved(qr_for_delete.id.clone()).await {
+                                                Ok(_) => {
+                                                    // Recharger la liste après suppression réussie
+                                                    if let Ok(list) = list_saved().await {
+                                                        saved.set(list);
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    // Afficher une erreur à l'utilisateur (vous pouvez utiliser un état pour les messages d'erreur)
+                                                    eprintln!("Erreur lors de la suppression du QR code {}: {:?}", qr_for_delete.id, e);
+                                                    // Pour l'instant, on recharge quand même la liste au cas où
+                                                    if let Ok(list) = list_saved().await {
+                                                        saved.set(list);
+                                                    }
                                                 }
                                             }
                                         }

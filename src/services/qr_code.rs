@@ -43,12 +43,23 @@ pub async fn list_saved() -> Result<Vec<SavedQr>, ServerFnError> {
     let mut res = vec![];
     for entry in fs::read_dir(data_dir).map_err(|e| ServerFnError::new(e.to_string()))? {
         let entry = entry.map_err(|e| ServerFnError::new(e.to_string()))?;
-        if let Some(name) = entry.path().file_name().and_then(|n| n.to_str()) {
-            let path = entry.path();
-            let s = fs::read_to_string(&path).map_err(|e| ServerFnError::new(e.to_string()))?;
-            let qr: SavedQr =
-                serde_json::from_str(&s).map_err(|e| ServerFnError::new(e.to_string()))?;
-            res.push(qr);
+        let path = entry.path();
+        if let Some(extension) = path.extension() {
+            if extension == "json" {
+                match fs::read_to_string(&path) {
+                    Ok(s) => match serde_json::from_str::<SavedQr>(&s) {
+                        Ok(qr) => res.push(qr),
+                        Err(e) => {
+                            // Log l'erreur mais continue avec les autres fichiers
+                            eprintln!("Erreur de désérialisation du fichier {:?}: {}", path, e);
+                        }
+                    },
+                    Err(e) => {
+                        // Log l'erreur mais continue
+                        eprintln!("Erreur de lecture du fichier {:?}: {}", path, e);
+                    }
+                }
+            }
         }
     }
     Ok(res)
@@ -64,7 +75,13 @@ pub async fn load_saved(filename: String) -> Result<SavedQr, ServerFnError> {
 
 #[server(DeleteSaved)]
 pub async fn delete_saved(filename: String) -> Result<(), ServerFnError> {
-    let path = Path::new("data").join(filename);
+    let path = Path::new("data").join(format!("{}.json", filename));
+    if !path.exists() {
+        return Err(ServerFnError::new(format!(
+            "Le fichier {} n'existe pas",
+            filename
+        )));
+    }
     fs::remove_file(&path).map_err(|e| ServerFnError::new(e.to_string()))?;
     Ok(())
 }

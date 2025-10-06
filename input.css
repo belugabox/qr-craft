@@ -1,2 +1,153 @@
 @import "tailwindcss";
-@source "./src/**/*.{rs,html,css}";
+
+@theme {
+  --color-primary: #6e22fa;
+  --color-primary-hover: #541abe;
+  --color-secondary: #2fb68d;
+  --color-secondary-hover: #238b6c;
+}
+
+/* Variables globales pour les thèmes */
+:root {
+  /* Thème sombre */
+  --dark-bg-primary: #111827; /* gray-900 */
+  --dark-bg-secondary: #1f2937; /* gray-800 */
+  --dark-bg-header: #111827; /* gray-900 */
+  --dark-text-primary: #ffffff; /* white */
+  --dark-text-secondary: #9ca3af; /* gray-400 */
+  --dark-text-muted: #6b7280; /* gray-500 */
+  --dark-border-color: #374151; /* gray-700 */
+
+  /* Thème clair */
+  --light-bg-primary: #ffffff; /* white */
+  --light-bg-secondary: #f9fafb; /* gray-50 */
+  --light-bg-header: #ffffff; /* white */
+  --light-text-primary: #111827; /* gray-900 */
+  --light-text-secondary: #374151; /* gray-700 */
+  --light-text-muted: #6b7280; /* gray-500 */
+  --light-border-color: #d1d5db; /* gray-300 */
+}
+
+/* Classes de thème */
+.theme-dark {
+  --bg-primary: var(--dark-bg-primary);
+  --bg-secondary: var(--dark-bg-secondary);
+  --bg-header: var(--dark-bg-header);
+  --text-primary: var(--dark-text-primary);
+  --text-secondary: var(--dark-text-secondary);
+  --text-muted: var(--dark-text-muted);
+  --border-color: var(--dark-border-color);
+}
+
+.theme-light,
+.theme-auto {
+  /* Thème clair par défaut pour .theme-light et .theme-auto */
+  --bg-primary: var(--light-bg-primary);
+  --bg-secondary: var(--light-bg-secondary);
+  --bg-header: var(--light-bg-header);
+  --text-primary: var(--light-text-primary);
+  --text-secondary: var(--light-text-secondary);
+  --text-muted: var(--light-text-muted);
+  --border-color: var(--light-border-color);
+}
+
+/* Override pour .theme-auto : utilise le thème sombre par défaut */
+.theme-auto {
+  --bg-primary: var(--dark-bg-primary);
+  --bg-secondary: var(--dark-bg-secondary);
+  --bg-header: var(--dark-bg-header);
+  --text-primary: var(--dark-text-primary);
+  --text-secondary: var(--dark-text-secondary);
+  --text-muted: var(--dark-text-muted);
+  --border-color: var(--dark-border-color);
+}
+
+/* Mode clair automatique pour .theme-auto quand le système le préfère */
+@media (prefers-color-scheme: light) {
+  .theme-auto {
+    --bg-primary: var(--light-bg-primary);
+    --bg-secondary: var(--light-bg-secondary);
+    --bg-header: var(--light-bg-header);
+    --text-primary: var(--light-text-primary);
+    --text-secondary: var(--light-text-secondary);
+    --text-muted: var(--light-text-muted);
+    --border-color: var(--light-border-color);
+  }
+}
+
+/* Classes utilitaires personnalisées */
+.btn-primary {
+  @apply bg-primary text-white font-bold py-2 px-4 rounded hover:bg-primary-hover transition-colors;
+}
+
+.btn-secondary {
+  @apply bg-secondary text-white font-bold py-2 px-4 rounded hover:bg-secondary-hover transition-colors;
+}
+
+.btn-outline-primary {
+  @apply border-2 border-primary text-primary font-bold py-2 px-4 rounded hover:bg-primary hover:text-white transition-colors;
+}
+
+.btn-outline-secondary {
+  @apply border-2 border-secondary text-secondary font-bold py-2 px-4 rounded hover:bg-secondary hover:text-white transition-colors;
+}
+
+.btn-ghost-primary {
+  @apply text-primary font-bold py-2 px-4 rounded hover:bg-blue-50 transition-colors;
+}
+
+.btn-ghost-secondary {
+  @apply text-secondary font-bold py-2 px-4 rounded hover:bg-green-50 transition-colors;
+}
+
+.text-primary {
+  @apply text-primary;
+}
+
+.text-secondary {
+  @apply text-secondary;
+}
+
+.bg-primary {
+  @apply bg-primary;
+}
+
+.bg-secondary {
+  @apply bg-secondary;
+}
+
+.border-primary {
+  @apply border-primary;
+}
+
+.border-secondary {
+  @apply border-secondary;
+}
+
+.bg-theme-primary {
+  background-color: var(--bg-primary);
+}
+
+.bg-theme-secondary {
+  background-color: var(--bg-secondary);
+}
+
+.bg-theme-header {
+  background-color: var(--bg-header);
+}
+
+.text-theme-primary {
+  color: var(--text-primary);
+}
+
+.text-theme-secondary {
+  color: var(--text-secondary);
+}
+
+.text-theme-muted {
+  color: var(--text-muted);
+}
+
+.border-theme {
+  border-color: var(--border-color);
+}

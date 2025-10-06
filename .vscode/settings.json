@@ -7,5 +7,20 @@
     "editor.defaultFormatter": "rust-lang.rust-analyzer",
     "editor.formatOnSave": true,
     "editor.formatOnSaveMode": "file"
+  },
+  "css.validate": false,
+  "less.validate": false,
+  "scss.validate": false,
+  "tailwindCSS.includeLanguages": {
+    "rust": "html"
+  },
+  "tailwindCSS.experimental.classRegex": [
+    ["class:\\s*\"([^\"]*)\"", "([a-zA-Z0-9\\-:]+)"]
+  ],
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+  "files.associations": {
+    "*.css": "tailwindcss"
   }
 }
