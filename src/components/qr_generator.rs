@@ -1,4 +1,4 @@
-use crate::components::icons::{GenerateIcon, SaveIcon};
+use crate::components::icons::SaveIcon;
 use crate::models::qr_code::{MarginEnabled, SavedQr, UIQr};
 use crate::services::qr_code::{generate_qr_code, list_saved, save_qr};
 use dioxus::prelude::*;
@@ -10,6 +10,41 @@ pub fn QrGenerator(
     saved: Signal<Vec<SavedQr>>,
     screen: Signal<super::app::Screen>,
 ) -> Element {
+    // Signal séparé pour l'image générée afin d'éviter les boucles infinies
+    let mut qr_image = use_signal(String::new);
+
+    // Signal pour stocker la dernière configuration utilisée
+    let mut last_config = use_signal::<Option<(String, u32, bool, MarginEnabled)>>(|| None);
+
+    // Effet pour générer automatiquement le QR code quand les paramètres changent
+    use_effect(move || {
+        let current_config = (ui().text.clone(), ui().size, ui().transparent, ui().margin);
+
+        // Vérifier si la configuration a changé
+        if last_config() != Some(current_config.clone()) {
+            last_config.set(Some(current_config.clone()));
+
+            let (text, size, transparent, margin) = current_config;
+
+            if !text.is_empty() {
+                spawn(async move {
+                    match generate_qr_code(text.clone(), size, transparent, margin).await {
+                        Ok(data_url) => {
+                            qr_image.set(data_url.clone());
+                            ui.write().image_data = data_url;
+                        }
+                        Err(e) => {
+                            eprintln!("generate error: {}", e);
+                        }
+                    }
+                });
+            } else {
+                qr_image.set(String::new());
+                ui.write().image_data = String::new();
+            }
+        }
+    });
+
     rsx! {
         div { class: "flex-1 p-8",
             div { class: "mb-6",
@@ -28,8 +63,9 @@ pub fn QrGenerator(
                     placeholder: "Text or URL...",
                     value: "{ui.read().text}",
                     oninput: move |e| {
+                        let new_text = e.value();
                         let mut v = (*ui.read()).clone();
-                        v.text = e.value();
+                        v.text = new_text;
                         ui.set(v);
                     },
                 }
@@ -73,35 +109,6 @@ pub fn QrGenerator(
 
                 div { class: "flex gap-2",
                     button {
-                        class: "p-2 btn-primary",
-                        onclick: move |_| {
-                            let ui = ui;
-                            to_owned![ui];
-                            async move {
-                                let cur = (*ui.read()).clone();
-                                match generate_qr_code(
-                                        cur.text.clone(),
-                                        cur.size,
-                                        cur.transparent,
-                                        cur.margin,
-                                    )
-                                    .await
-                                {
-                                    Ok(data_url) => {
-                                        let mut v = (*ui.read()).clone();
-                                        v.image_data = data_url;
-                                        ui.set(v);
-                                    }
-                                    Err(e) => {
-                                        eprintln!("generate error: {}", e);
-                                    }
-                                }
-                            }
-                        },
-                        GenerateIcon { class: "w-4 h-4".to_string() }
-                    }
-
-                    button {
                         class: "p-2 btn-secondary",
                         onclick: move |_| {
                             let ui = ui;
@@ -109,24 +116,20 @@ pub fn QrGenerator(
                             to_owned![ui, saved];
                             async move {
                                 let cur = (*ui.read()).clone();
-                                if cur.image_data.is_empty() {
+                                let image_data = qr_image.read().clone();
+                                if image_data.is_empty() {
                                     return;
                                 }
-                                let base64 = cur
-                                    .image_data
+                                let base64 = image_data
                                     .split_once(',')
                                     .map(|(_, b64)| b64)
-                                    .unwrap_or(&cur.image_data)
+                                    .unwrap_or(&image_data)
                                     .to_string();
-
                                 let id = if let Some(editing_id) = &cur.editing_id {
-                                    // Mode édition : utiliser l'ID existant
                                     editing_id.clone()
                                 } else {
-                                    // Mode création : générer un nouvel ID
                                     format!("qr-{}", fastrand::u64(..))
                                 };
-
                                 let saved_q = SavedQr {
                                     id: id.clone(),
                                     text: cur.text.clone(),
@@ -140,7 +143,6 @@ pub fn QrGenerator(
                                     if let Ok(list) = list_saved().await {
                                         saved.set(list);
                                     }
-                                    // Réinitialiser l'état d'édition après sauvegarde
                                     let mut v = (*ui.read()).clone();
                                     v.editing_id = None;
                                     ui.set(v);
@@ -151,9 +153,9 @@ pub fn QrGenerator(
                     }
                 }
 
-                if !ui.read().image_data.is_empty() {
+                if !qr_image.read().is_empty() {
                     div { class: "mt-4 p-3 rounded text-black bg-checkered",
-                        img { src: "{ui.read().image_data}" }
+                        img { src: "{qr_image.read()}" }
                     }
                 }
             }
