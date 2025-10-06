@@ -16,14 +16,23 @@ pub enum Theme {
     Light,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum Screen {
+    List, // Écran de liste des QR codes
+    Edit, // Écran d'édition/création de QR code
+}
+
 #[component]
 pub fn App() -> Element {
     let mut theme = use_signal(|| Theme::Auto);
+    let screen = use_signal(|| Screen::List); // Commencer par l'écran de liste
     let ui = use_signal(|| UIQr {
-        text: constants::DEFAULT_QR_TEXT.into(),
+        text: crate::config::constants::DEFAULT_QR_TEXT.into(),
         size: 256,
         transparent: false,
+        margin: crate::models::qr_code::MarginEnabled(true),
         image_data: String::new(),
+        editing_id: None,
     });
     let saved = use_signal(Vec::<SavedQr>::new);
 
@@ -73,8 +82,14 @@ pub fn App() -> Element {
                 }
 
                 div { class: "flex-grow",
-                    SavedQrList { ui, saved }
-                    QrGenerator { ui, saved }
+                    match screen() {
+                        Screen::List => rsx! {
+                            SavedQrList { ui, saved, screen }
+                        },
+                        Screen::Edit => rsx! {
+                            QrGenerator { ui, saved, screen }
+                        },
+                    }
                 }
             }
         }

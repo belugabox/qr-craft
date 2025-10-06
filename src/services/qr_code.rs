@@ -6,15 +6,17 @@ use std::fs;
 #[allow(unused_imports)]
 use std::path::Path;
 
-use crate::models::qr_code::SavedQr;
+use crate::models::qr_code::{MarginEnabled, SavedQr};
 
 #[server(GenerateQrCode)]
 pub async fn generate_qr_code(
     text: String,
     size: u32,
     transparent: bool,
+    margin: MarginEnabled,
 ) -> Result<String, ServerFnError> {
-    let bytes = render_qr_png_bytes(&text, size, transparent).map_err(|e| ServerFnError::new(e))?;
+    let bytes =
+        render_qr_png_bytes(&text, size, transparent, margin).map_err(|e| ServerFnError::new(e))?;
     let base64_image = base64::encode(&bytes);
     let data_url = format!("data:image/png;base64,{}", base64_image);
     Ok(data_url)
@@ -87,7 +89,12 @@ pub async fn delete_saved(filename: String) -> Result<(), ServerFnError> {
 }
 
 #[allow(dead_code)]
-pub fn render_qr_png_bytes(text: &str, size: u32, transparent: bool) -> Result<Vec<u8>, String> {
+pub fn render_qr_png_bytes(
+    text: &str,
+    size: u32,
+    transparent: bool,
+    margin: MarginEnabled,
+) -> Result<Vec<u8>, String> {
     if text.is_empty() {
         return Err("Le texte ne peut pas être vide.".into());
     }
@@ -102,7 +109,7 @@ pub fn render_qr_png_bytes(text: &str, size: u32, transparent: bool) -> Result<V
             255,
             if transparent { 0 } else { 255 },
         ]))
-        .quiet_zone(false)
+        .quiet_zone(margin.0) // Utilise directement le boolean
         .min_dimensions(size, size)
         .build();
 
@@ -145,7 +152,8 @@ mod tests {
 
     #[test]
     fn test_render_qr_png_bytes_basic() {
-        let bytes = render_qr_png_bytes("hello", 128, false).expect("render failed");
+        let bytes =
+            render_qr_png_bytes("hello", 128, false, MarginEnabled(true)).expect("render failed");
         // PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A
         let png_magic = [0x89u8, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
         assert!(bytes.len() >= png_magic.len());
@@ -154,7 +162,8 @@ mod tests {
 
     #[test]
     fn test_render_qr_png_bytes_transparent() {
-        let bytes = render_qr_png_bytes("transparent", 128, true).expect("render failed");
+        let bytes = render_qr_png_bytes("transparent", 128, true, MarginEnabled(true))
+            .expect("render failed");
         let png_magic = [0x89u8, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
         assert_eq!(&bytes[0..8], &png_magic);
     }

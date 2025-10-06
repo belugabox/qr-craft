@@ -1,13 +1,27 @@
 use crate::components::icons::{GenerateIcon, SaveIcon};
-use crate::models::qr_code::{SavedQr, UIQr};
+use crate::models::qr_code::{MarginEnabled, SavedQr, UIQr};
 use crate::services::qr_code::{generate_qr_code, list_saved, save_qr};
 use dioxus::prelude::*;
 use js_sys::Date;
 
 #[component]
-pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
+pub fn QrGenerator(
+    ui: Signal<UIQr>,
+    saved: Signal<Vec<SavedQr>>,
+    screen: Signal<super::app::Screen>,
+) -> Element {
     rsx! {
         div { class: "flex-1 p-8",
+            div { class: "mb-6",
+                button {
+                    class: "btn-secondary flex items-center gap-2 px-4 py-2",
+                    onclick: move |_| {
+                        screen.set(super::app::Screen::List);
+                    },
+                    "← Retour à la liste"
+                }
+            }
+
             div { class: "space-y-3",
                 input {
                     class: "p-2 w-full",
@@ -35,19 +49,26 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
                         option { value: "256", "256" }
                         option { value: "512", "512" }
                     }
-
-                    label { class: "flex items-center gap-2",
-                        input {
-                            r#type: "checkbox",
-                            checked: "{ui.read().transparent}",
-                            onchange: move |e| {
-                                let mut v = (*ui.read()).clone();
-                                v.transparent = e.value() == "on" || e.value() == "true";
-                                ui.set(v);
-                            },
-                        }
-                        span { "Transparent" }
+                    input {
+                        r#type: "checkbox",
+                        checked: "{ui.read().margin.0}",
+                        onchange: move |e| {
+                            let mut v = (*ui.read()).clone();
+                            v.margin = MarginEnabled(e.value() == "on" || e.value() == "true");
+                            ui.set(v);
+                        },
                     }
+                    span { "Marge" }
+                    input {
+                        r#type: "checkbox",
+                        checked: "{ui.read().transparent}",
+                        onchange: move |e| {
+                            let mut v = (*ui.read()).clone();
+                            v.transparent = e.value() == "on" || e.value() == "true";
+                            ui.set(v);
+                        },
+                    }
+                    span { "Transparent" }
                 }
 
                 div { class: "flex gap-2",
@@ -58,7 +79,14 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
                             to_owned![ui];
                             async move {
                                 let cur = (*ui.read()).clone();
-                                match generate_qr_code(cur.text.clone(), cur.size, cur.transparent).await {
+                                match generate_qr_code(
+                                        cur.text.clone(),
+                                        cur.size,
+                                        cur.transparent,
+                                        cur.margin,
+                                    )
+                                    .await
+                                {
                                     Ok(data_url) => {
                                         let mut v = (*ui.read()).clone();
                                         v.image_data = data_url;
@@ -90,12 +118,21 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
                                     .map(|(_, b64)| b64)
                                     .unwrap_or(&cur.image_data)
                                     .to_string();
-                                let id = format!("qr-{}", fastrand::u64(..));
+
+                                let id = if let Some(editing_id) = &cur.editing_id {
+                                    // Mode édition : utiliser l'ID existant
+                                    editing_id.clone()
+                                } else {
+                                    // Mode création : générer un nouvel ID
+                                    format!("qr-{}", fastrand::u64(..))
+                                };
+
                                 let saved_q = SavedQr {
                                     id: id.clone(),
                                     text: cur.text.clone(),
                                     size: cur.size,
                                     transparent: cur.transparent,
+                                    margin: cur.margin,
                                     created_at: format!("{}", (Date::now() / 1000.0) as u64),
                                     image_data: base64,
                                 };
@@ -103,6 +140,10 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
                                     if let Ok(list) = list_saved().await {
                                         saved.set(list);
                                     }
+                                    // Réinitialiser l'état d'édition après sauvegarde
+                                    let mut v = (*ui.read()).clone();
+                                    v.editing_id = None;
+                                    ui.set(v);
                                 }
                             }
                         },
