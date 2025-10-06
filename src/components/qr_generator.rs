@@ -8,22 +8,26 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
     rsx! {
         div { class: "flex-1 p-8",
             div { class: "space-y-3",
-                input { class: "p-2 w-full",
+                input {
+                    class: "p-2 w-full",
                     placeholder: "Text or URL...",
                     value: "{ui.read().text}",
                     oninput: move |e| {
                         let mut v = (*ui.read()).clone();
                         v.text = e.value();
                         ui.set(v);
-                    }
+                    },
                 }
 
                 div { class: "flex items-center gap-4",
-                    select { class: "p-2",
+                    select {
+                        class: "p-2",
                         value: "{ui.read().size}",
                         onchange: move |e| {
                             if let Ok(s) = e.value().parse::<u32>() {
-                                let mut v = (*ui.read()).clone(); v.size = s; ui.set(v);
+                                let mut v = (*ui.read()).clone();
+                                v.size = s;
+                                ui.set(v);
                             }
                         },
                         option { value: "128", "128" }
@@ -32,51 +36,77 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
                     }
 
                     label { class: "flex items-center gap-2",
-                        input { r#type: "checkbox", checked: "{ui.read().transparent}", onchange: move |e| {
-                            let mut v = (*ui.read()).clone();
-                            v.transparent = e.value() == "on" || e.value() == "true";
-                            ui.set(v);
-                        } }
+                        input {
+                            r#type: "checkbox",
+                            checked: "{ui.read().transparent}",
+                            onchange: move |e| {
+                                let mut v = (*ui.read()).clone();
+                                v.transparent = e.value() == "on" || e.value() == "true";
+                                ui.set(v);
+                            },
+                        }
                         span { "Transparent" }
                     }
                 }
 
                 div { class: "flex gap-2",
-                    button { class: "p-2 bg-teal-600 rounded hover:bg-teal-500 transition-colors", onclick: move |_| {
-                        let ui = ui.clone(); to_owned![ui];
-                        async move {
-                            let cur = (*ui.read()).clone();
-                            match generate_qr_code(cur.text.clone(), cur.size, cur.transparent).await {
-                                Ok(data_url) => {
-                                    let mut v = (*ui.read()).clone(); v.image_data = data_url; ui.set(v);
-                                }
-                                Err(e) => {
-                                    eprintln!("generate error: {}", e);
+                    button {
+                        class: "p-2 bg-teal-600 rounded hover:bg-teal-500 transition-colors",
+                        onclick: move |_| {
+                            let ui = ui;
+                            to_owned![ui];
+                            async move {
+                                let cur = (*ui.read()).clone();
+                                match generate_qr_code(cur.text.clone(), cur.size, cur.transparent).await {
+                                    Ok(data_url) => {
+                                        let mut v = (*ui.read()).clone();
+                                        v.image_data = data_url;
+                                        ui.set(v);
+                                    }
+                                    Err(e) => {
+                                        eprintln!("generate error: {}", e);
+                                    }
                                 }
                             }
-                        }
-                    }, "Generate" }
+                        },
+                        "Generate"
+                    }
 
-                    button { class: "p-2 bg-gray-200 text-black rounded hover:bg-gray-100 transition-colors", onclick: move |_| {
-                        let ui = ui.clone(); let saved = saved.clone(); to_owned![ui, saved];
-                        async move {
-                            let cur = (*ui.read()).clone();
-                            if cur.image_data.is_empty() { return; }
-                            let base64 = cur.image_data.splitn(2, ',').nth(1).unwrap_or(&cur.image_data).to_string();
-                            let id = format!("qr-{}", fastrand::u64(..));
-                            let saved_q = SavedQr {
-                                id: id.clone(),
-                                text: cur.text.clone(),
-                                size: cur.size,
-                                transparent: cur.transparent,
-                                created_at: format!("{}", (Date::now() / 1000.0) as u64),
-                                image_data: base64
-                            };
-                            if let Ok(_) = save_qr(saved_q).await {
-                                if let Ok(list) = list_saved().await { saved.set(list); }
+                    button {
+                        class: "p-2 bg-gray-200 text-black rounded hover:bg-gray-100 transition-colors",
+                        onclick: move |_| {
+                            let ui = ui;
+                            let saved = saved;
+                            to_owned![ui, saved];
+                            async move {
+                                let cur = (*ui.read()).clone();
+                                if cur.image_data.is_empty() {
+                                    return;
+                                }
+                                let base64 = cur
+                                    .image_data
+                                    .split_once(',')
+                                    .map(|(_, b64)| b64)
+                                    .unwrap_or(&cur.image_data)
+                                    .to_string();
+                                let id = format!("qr-{}", fastrand::u64(..));
+                                let saved_q = SavedQr {
+                                    id: id.clone(),
+                                    text: cur.text.clone(),
+                                    size: cur.size,
+                                    transparent: cur.transparent,
+                                    created_at: format!("{}", (Date::now() / 1000.0) as u64),
+                                    image_data: base64,
+                                };
+                                if save_qr(saved_q).await.is_ok() {
+                                    if let Ok(list) = list_saved().await {
+                                        saved.set(list);
+                                    }
+                                }
                             }
-                        }
-                    }, "Save" }
+                        },
+                        "Save"
+                    }
                 }
 
                 if !ui.read().image_data.is_empty() {
