@@ -1,0 +1,44 @@
+/* Custom styles for Beer CSS */
+
+/* Material Icons styling - using Google Fonts CDN */
+i {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Classe pour le fond en damier derrière les QR codes */
+.bg-checkered {
+  --squareSize: 8px;
+  background-color: var(--surface);
+  background-image: linear-gradient(
+      45deg,
+      var(--surface-variant) 25%,
+      transparent 25%
+    ),
+    linear-gradient(135deg, var(--surface-variant) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--surface-variant) 75%),
+    linear-gradient(135deg, transparent 75%, var(--surface-variant) 75%);
+  background-position: 0 0, var(--squareSize) 0,
+    var(--squareSize) calc(-1 * var(--squareSize)),
+    0 calc(-1 * var(--squareSize));
+  background-size: calc(2 * var(--squareSize)) calc(2 * var(--squareSize));
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.hover-opacity:hover {
+  opacity: 0.8;
+}

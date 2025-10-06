@@ -52,10 +52,10 @@ pub fn QrGenerator(
     });
 
     rsx! {
-        div { class: "p-4",
-            div { class: "mb-6",
+        div { class: "padding",
+            div { class: "small-margin",
                 button {
-                    class: "btn-secondary flex items-center gap-2 px-4 py-2",
+                    class: "fill secondary",
                     onclick: move |_| {
                         screen.set(super::app::Screen::List);
                     },
@@ -63,9 +63,9 @@ pub fn QrGenerator(
                 }
             }
 
-            div { class: "space-y-3",
+            div { class: "space",
                 input {
-                    class: "p-2 w-full",
+                    class: "field border",
                     placeholder: "Text or URL...",
                     value: "{ui.read().text}",
                     oninput: move |e| {
@@ -76,46 +76,51 @@ pub fn QrGenerator(
                     },
                 }
 
-                div { class: "flex items-center gap-4",
-                    select {
-                        class: "p-2",
-                        value: "{ui.read().size}",
-                        onchange: move |e| {
-                            if let Ok(s) = e.value().parse::<u32>() {
+                div { class: "row",
+                    div { class: "field border",
+                        select {
+                            value: "{ui.read().size}",
+                            onchange: move |e| {
+                                if let Ok(s) = e.value().parse::<u32>() {
+                                    let mut v = (*ui.read()).clone();
+                                    v.size = s;
+                                    ui.set(v);
+                                }
+                            },
+                            option { value: "128", "128" }
+                            option { value: "256", "256" }
+                            option { value: "512", "512" }
+                        }
+                    }
+                    label { class: "checkbox",
+                        input {
+                            r#type: "checkbox",
+                            checked: "{ui.read().margin.0}",
+                            onchange: move |e| {
                                 let mut v = (*ui.read()).clone();
-                                v.size = s;
+                                v.margin = MarginEnabled(e.value() == "on" || e.value() == "true");
                                 ui.set(v);
-                            }
-                        },
-                        option { value: "128", "128" }
-                        option { value: "256", "256" }
-                        option { value: "512", "512" }
+                            },
+                        }
+                        span { "Marge" }
                     }
-                    input {
-                        r#type: "checkbox",
-                        checked: "{ui.read().margin.0}",
-                        onchange: move |e| {
-                            let mut v = (*ui.read()).clone();
-                            v.margin = MarginEnabled(e.value() == "on" || e.value() == "true");
-                            ui.set(v);
-                        },
+                    label { class: "checkbox",
+                        input {
+                            r#type: "checkbox",
+                            checked: "{ui.read().transparent}",
+                            onchange: move |e| {
+                                let mut v = (*ui.read()).clone();
+                                v.transparent = e.value() == "on" || e.value() == "true";
+                                ui.set(v);
+                            },
+                        }
+                        span { "Transparent" }
                     }
-                    span { "Marge" }
-                    input {
-                        r#type: "checkbox",
-                        checked: "{ui.read().transparent}",
-                        onchange: move |e| {
-                            let mut v = (*ui.read()).clone();
-                            v.transparent = e.value() == "on" || e.value() == "true";
-                            ui.set(v);
-                        },
-                    }
-                    span { "Transparent" }
                 }
 
-                div { class: "flex gap-2",
+                div { class: "row",
                     button {
-                        class: "p-2 btn-secondary",
+                        class: "circle secondary",
                         onclick: move |_| {
                             let ui = ui;
                             let saved = saved;
@@ -155,16 +160,16 @@ pub fn QrGenerator(
                                 }
                             }
                         },
-                        SaveIcon { class: "w-4 h-4".to_string() }
+                        SaveIcon { class: "".to_string() }
                     }
                 }
 
                 if !qr_image.read().is_empty() {
-                    div { class: "mt-4 p-3 rounded text-black bg-checkered flex justify-center",
+                    div { class: "center-align padding bg-checkered round",
                         img {
                             src: "{qr_image.read()}",
                             onclick: download_qr,
-                            class: "cursor-pointer hover:opacity-80 transition-opacity",
+                            class: "cursor-pointer hover-opacity",
                         }
                     }
                 }
