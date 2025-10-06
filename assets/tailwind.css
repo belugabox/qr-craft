@@ -10,7 +10,6 @@
     --color-red-500: oklch(63.7% 0.237 25.331);
     --color-red-600: oklch(57.7% 0.245 27.325);
     --color-green-50: oklch(98.2% 0.018 155.826);
-    --color-green-700: oklch(52.7% 0.154 150.069);
     --color-blue-50: oklch(97% 0.014 254.604);
     --color-black: #000;
     --color-white: #fff;
@@ -26,8 +25,8 @@
     --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
-    --color-primary: #6e22fa;
-    --color-primary-hover: #541abe;
+    --color-primary: #fa226a;
+    --color-primary-hover: #c51751;
     --color-secondary: #2fb68d;
     --color-secondary-hover: #238b6c;
   }
@@ -205,8 +204,20 @@
   .table {
     display: table;
   }
+  .h-3 {
+    height: calc(var(--spacing) * 3);
+  }
+  .h-4 {
+    height: calc(var(--spacing) * 4);
+  }
   .min-h-screen {
     min-height: 100vh;
+  }
+  .w-3 {
+    width: calc(var(--spacing) * 3);
+  }
+  .w-4 {
+    width: calc(var(--spacing) * 4);
   }
   .w-full {
     width: 100%;
@@ -282,6 +293,9 @@
   }
   .bg-secondary {
     background-color: var(--color-secondary);
+  }
+  .p-1 {
+    padding: calc(var(--spacing) * 1);
   }
   .p-2 {
     padding: calc(var(--spacing) * 2);
@@ -555,6 +569,15 @@
 }
 .border-theme {
   border-color: var(--border-color);
+}
+.bg-checkered {
+  --backgroundColor: var(--bg-primary);
+  --squareColor: var(--border-color);
+  --squareSize: 8px;
+  background-color: var(--backgroundColor);
+  background-image: linear-gradient( 45deg, var(--squareColor) 25%, transparent 25% ), linear-gradient(135deg, var(--squareColor) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--squareColor) 75%), linear-gradient(135deg, transparent 75%, var(--squareColor) 75%);
+  background-position: 0 0, var(--squareSize) 0, var(--squareSize) calc(-1 * var(--squareSize)), 0 calc(-1 * var(--squareSize));
+  background-size: calc(2 * var(--squareSize)) calc(2 * var(--squareSize));
 }
 @property --tw-space-y-reverse {
   syntax: "*";

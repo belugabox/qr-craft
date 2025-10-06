@@ -1,3 +1,4 @@
+use crate::components::icons::{GenerateIcon, SaveIcon};
 use crate::models::qr_code::{SavedQr, UIQr};
 use crate::services::qr_code::{generate_qr_code, list_saved, save_qr};
 use dioxus::prelude::*;
@@ -69,7 +70,7 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
                                 }
                             }
                         },
-                        "Generate"
+                        GenerateIcon { class: "w-4 h-4".to_string() }
                     }
 
                     button {
@@ -105,12 +106,12 @@ pub fn QrGenerator(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
                                 }
                             }
                         },
-                        "Save"
+                        SaveIcon { class: "w-4 h-4".to_string() }
                     }
                 }
 
                 if !ui.read().image_data.is_empty() {
-                    div { class: "mt-4 p-3 rounded text-black",
+                    div { class: "mt-4 p-3 rounded text-black bg-checkered",
                         img { src: "{ui.read().image_data}" }
                     }
                 }

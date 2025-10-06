@@ -1,5 +1,6 @@
 //! Composant principal de l'application
 
+use crate::components::icons::{MoonIcon, SunIcon, SwatchIcon};
 use crate::components::qr_generator::QrGenerator;
 use crate::components::saved_qr_list::SavedQrList;
 use crate::config::constants;
@@ -10,7 +11,7 @@ static CSS: Asset = asset!("/assets/tailwind.css");
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Theme {
-    Auto,  // Suit automatiquement le thème système
+    Auto, // Suit automatiquement le thème système
     Dark,
     Light,
 }
@@ -57,9 +58,15 @@ pub fn App() -> Element {
                                 theme.set(new_theme);
                             },
                             match theme() {
-                                Theme::Auto => "�",
-                                Theme::Dark => "🌙",
-                                Theme::Light => "☀️",
+                                Theme::Auto => rsx! {
+                                    SwatchIcon { class: "w-4 h-4".to_string() }
+                                },
+                                Theme::Dark => rsx! {
+                                    MoonIcon { class: "w-4 h-4".to_string() }
+                                },
+                                Theme::Light => rsx! {
+                                    SunIcon { class: "w-4 h-4".to_string() }
+                                },
                             }
                         }
                     }

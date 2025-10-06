@@ -95,7 +95,6 @@ L'application sera accessible sur [http://localhost:8080](http://localhost:8080)
 ### Gestion des QR Sauvegardés
 
 - **Chargement automatique** au démarrage
-- **Actualisation manuelle** avec le bouton "Refresh"
 - **Charger** un QR sauvegardé pour modification
 - **Supprimer** les QR non désirés
 

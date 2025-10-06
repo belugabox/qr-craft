@@ -1,3 +1,4 @@
+use crate::components::icons::{DeleteIcon, LoadIcon};
 use crate::models::qr_code::{SavedQr, UIQr};
 use crate::services::qr_code::{delete_saved, list_saved};
 use dioxus::prelude::*;
@@ -15,32 +16,19 @@ pub fn SavedQrList(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
     });
 
     rsx! {
-        nav { class: "p-4",
-            button {
-                class: "p-2 btn-primary",
-                onclick: move |_| {
-                    let saved = saved;
-                    to_owned![saved];
-                    async move {
-                        if let Ok(list) = list_saved().await {
-                            saved.set(list);
-                        }
-                    }
-                },
-                "Refresh"
-            }
-
-            div { class: "mt-4 space-y-2",
+        nav { class: "p-4",            div { class: "mt-4 space-y-2",
                 for qr in saved.read().iter().cloned() {
                     {
                         let qr_for_load = qr.clone();
                         let qr_for_delete = qr.clone();
                         rsx! {
                             div { key: "{qr.id}", class: "flex items-center gap-2",
-                                img {
-                                    src: "data:image/png;base64,{qr.image_data}",
-                                    width: "64",
-                                    height: "64",
+                                div { class: "bg-checkered p-1 rounded",
+                                    img {
+                                        src: "data:image/png;base64,{qr.image_data}",
+                                        width: "64",
+                                        height: "64",
+                                    }
                                 }
                                 span { class: "flex-1 truncate text-sm", "{qr.text}" }
                                 button {
@@ -58,7 +46,7 @@ pub fn SavedQrList(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
                                             });
                                         }
                                     },
-                                    "Load"
+                                    LoadIcon { class: "w-3 h-3".to_string() }
                                 }
                                 button {
                                     class: "px-2 py-1 bg-red-600 rounded text-xs hover:bg-red-500 transition-colors",
@@ -84,7 +72,7 @@ pub fn SavedQrList(ui: Signal<UIQr>, saved: Signal<Vec<SavedQr>>) -> Element {
                                             }
                                         }
                                     },
-                                    "Delete"
+                                    DeleteIcon { class: "w-3 h-3".to_string() }
                                 }
                             }
                         }

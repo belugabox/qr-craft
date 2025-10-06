@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #6e22fa;
-  --color-primary-hover: #541abe;
+  --color-primary: #fa226a;
+  --color-primary-hover: #c51751;
   --color-secondary: #2fb68d;
   --color-secondary-hover: #238b6c;
 }
@@ -150,4 +150,24 @@
 
 .border-theme {
   border-color: var(--border-color);
+}
+
+/* Classe pour le fond en damier derrière les QR codes */
+.bg-checkered {
+  --backgroundColor: var(--bg-primary);
+  --squareColor: var(--border-color);
+  --squareSize: 8px;
+  background-color: var(--backgroundColor);
+  background-image: linear-gradient(
+      45deg,
+      var(--squareColor) 25%,
+      transparent 25%
+    ),
+    linear-gradient(135deg, var(--squareColor) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--squareColor) 75%),
+    linear-gradient(135deg, transparent 75%, var(--squareColor) 75%);
+  background-position: 0 0, var(--squareSize) 0,
+    var(--squareSize) calc(-1 * var(--squareSize)),
+    0 calc(-1 * var(--squareSize));
+  background-size: calc(2 * var(--squareSize)) calc(2 * var(--squareSize));
 }
