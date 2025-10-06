@@ -24,7 +24,7 @@ pub fn QrGenerator(
                         if let Ok(anchor) = anchor.dyn_into::<HtmlElement>() {
                             let _ = anchor.set_attribute("href", &image_data);
                             let _ = anchor.set_attribute("download", "qr-code.png");
-                            let _ = anchor.click();
+                            anchor.click();
                         }
                     }
                 }

@@ -31,7 +31,6 @@ pub fn App() -> Element {
         size: 256,
         transparent: false,
         margin: crate::models::qr_code::MarginEnabled(true),
-        image_data: String::new(),
         editing_id: None,
     });
     let saved = use_signal(Vec::<SavedQr>::new);

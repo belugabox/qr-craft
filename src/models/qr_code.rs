@@ -19,7 +19,6 @@ pub struct UIQr {
     pub size: u32,
     pub transparent: bool,
     pub margin: MarginEnabled,
-    pub image_data: String,
     pub editing_id: Option<String>,
 }
 
@@ -30,7 +29,6 @@ pub struct SavedQr {
     pub text: String,
     pub size: u32,
     pub transparent: bool,
-    #[serde(default)]
     pub margin: MarginEnabled,
     pub created_at: String,
     pub image_data: String,

@@ -31,7 +31,6 @@ pub fn SavedQrList(
                             size: 256,
                             transparent: false,
                             margin: crate::models::qr_code::MarginEnabled(true),
-                            image_data: String::new(),
                             editing_id: None,
                         });
                     },
@@ -79,14 +78,13 @@ pub fn SavedQrList(
                                         }
                                         div { class: "flex gap-2 mt-2",
                                             button {
-                                                class: "flex-1 px-3 py-2 btn-primary text-xs flex items-center justify-center gap-1",
+                                                class: "flex-1 px-3 py-2 btn-ghost-primary text-xs flex items-center justify-center gap-1",
                                                 onclick: move |_| {
                                                     ui.set(UIQr {
                                                         text: qr_for_load.text.clone(),
                                                         size: qr_for_load.size,
                                                         transparent: qr_for_load.transparent,
                                                         margin: qr_for_load.margin,
-                                                        image_data: format!("data:image/png;base64,{}", qr_for_load.image_data),
                                                         editing_id: Some(qr_for_load.id.clone()),
                                                     });
                                                     screen.set(super::app::Screen::Edit);
