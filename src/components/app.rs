@@ -81,7 +81,7 @@ pub fn App() -> Element {
                     }
                 }
 
-                div { class: "flex-grow",
+                div { class: "flex justify-center",
                     match screen() {
                         Screen::List => rsx! {
                             SavedQrList { ui, saved, screen }

@@ -3765,6 +3765,7 @@ dependencies = [
  "qrcode",
  "serde",
  "serde_json",
+ "web-sys",
 ]
 
 [[package]]

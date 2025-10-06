@@ -3,6 +3,7 @@ use crate::models::qr_code::{MarginEnabled, SavedQr, UIQr};
 use crate::services::qr_code::{generate_qr_code, list_saved, save_qr};
 use dioxus::prelude::*;
 use js_sys::Date;
+use web_sys::{wasm_bindgen::JsCast, window, HtmlElement};
 
 #[component]
 pub fn QrGenerator(
@@ -12,6 +13,24 @@ pub fn QrGenerator(
 ) -> Element {
     // Signal séparé pour l'image générée afin d'éviter les boucles infinies
     let mut qr_image = use_signal(String::new);
+
+    // Fonction pour télécharger l'image QR
+    let download_qr = move |_| {
+        let image_data = qr_image.read().clone();
+        if !image_data.is_empty() {
+            if let Some(window) = window() {
+                if let Some(document) = window.document() {
+                    if let Ok(anchor) = document.create_element("a") {
+                        if let Ok(anchor) = anchor.dyn_into::<HtmlElement>() {
+                            let _ = anchor.set_attribute("href", &image_data);
+                            let _ = anchor.set_attribute("download", "qr-code.png");
+                            let _ = anchor.click();
+                        }
+                    }
+                }
+            }
+        }
+    };
 
     // Effet pour générer automatiquement le QR code quand les paramètres changent
     use_effect(move || {
@@ -33,7 +52,7 @@ pub fn QrGenerator(
     });
 
     rsx! {
-        div { class: "flex-1 p-8",
+        div { class: "p-4",
             div { class: "mb-6",
                 button {
                     class: "btn-secondary flex items-center gap-2 px-4 py-2",
@@ -141,8 +160,12 @@ pub fn QrGenerator(
                 }
 
                 if !qr_image.read().is_empty() {
-                    div { class: "mt-4 p-3 rounded text-black bg-checkered",
-                        img { src: "{qr_image.read()}" }
+                    div { class: "mt-4 p-3 rounded text-black bg-checkered flex justify-center",
+                        img {
+                            src: "{qr_image.read()}",
+                            onclick: download_qr,
+                            class: "cursor-pointer hover:opacity-80 transition-opacity",
+                        }
                     }
                 }
             }

@@ -21,7 +21,7 @@ pub fn SavedQrList(
 
     rsx! {
         div { class: "p-4",
-            div { class: "mb-6",
+            div { class: "pb-4 flex justify-center",
                 button {
                     class: "btn-primary flex items-center gap-2 px-4 py-2",
                     onclick: move |_| {
