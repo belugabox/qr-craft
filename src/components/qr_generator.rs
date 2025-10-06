@@ -13,35 +13,22 @@ pub fn QrGenerator(
     // Signal séparé pour l'image générée afin d'éviter les boucles infinies
     let mut qr_image = use_signal(String::new);
 
-    // Signal pour stocker la dernière configuration utilisée
-    let mut last_config = use_signal::<Option<(String, u32, bool, MarginEnabled)>>(|| None);
-
     // Effet pour générer automatiquement le QR code quand les paramètres changent
     use_effect(move || {
-        let current_config = (ui().text.clone(), ui().size, ui().transparent, ui().margin);
+        let text = ui().text.clone();
+        let size = ui().size;
+        let transparent = ui().transparent;
+        let margin = ui().margin;
 
-        // Vérifier si la configuration a changé
-        if last_config() != Some(current_config.clone()) {
-            last_config.set(Some(current_config.clone()));
-
-            let (text, size, transparent, margin) = current_config;
-
-            if !text.is_empty() {
-                spawn(async move {
-                    match generate_qr_code(text.clone(), size, transparent, margin).await {
-                        Ok(data_url) => {
-                            qr_image.set(data_url.clone());
-                            ui.write().image_data = data_url;
-                        }
-                        Err(e) => {
-                            eprintln!("generate error: {}", e);
-                        }
-                    }
-                });
-            } else {
-                qr_image.set(String::new());
-                ui.write().image_data = String::new();
-            }
+        if !text.is_empty() {
+            spawn(async move {
+                match generate_qr_code(text, size, transparent, margin).await {
+                    Ok(data_url) => qr_image.set(data_url),
+                    Err(e) => eprintln!("generate error: {}", e),
+                }
+            });
+        } else {
+            qr_image.set(String::new());
         }
     });
 
