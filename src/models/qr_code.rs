@@ -20,6 +20,10 @@ pub struct UIQr {
     pub size: u32,
     pub transparent: bool,
     pub margin: MarginEnabled,
+    // Optional logo data URL (data:image/...), or external URL
+    pub logo_data_url: Option<String>,
+    // Optional logo size ratio (fraction of QR width)
+    pub logo_ratio: Option<f64>,
 }
 
 /// Représentation d'un QR code sauvegardé
@@ -32,4 +36,6 @@ pub struct SavedQr {
     pub margin: MarginEnabled,
     pub created_at: String,
     pub image_data: String,
+    pub logo_data_url: Option<String>,
+    pub logo_ratio: Option<f64>,
 }

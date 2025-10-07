@@ -3,7 +3,7 @@ use crate::services::qr_code::{generate_qr_code, list_saved, save_qr};
 use dioxus::logger::tracing;
 use dioxus::prelude::*;
 use js_sys::Date;
-use web_sys::{wasm_bindgen::JsCast, window, HtmlElement};
+use web_sys::{wasm_bindgen::closure::Closure, wasm_bindgen::JsCast, window, HtmlElement};
 
 #[component]
 pub fn QrGenerator(
@@ -15,6 +15,10 @@ pub fn QrGenerator(
 
     // Signal séparé pour l'image générée afin d'éviter les boucles infinies
     let mut qr_image = use_signal(String::new);
+    // Signal pour le logo (data URL)
+    let mut logo_data_url = use_signal(|| String::new());
+    // Signal pour le ratio du logo (0.0 - 0.5)
+    let mut logo_ratio = use_signal(|| 0.20_f64);
 
     // Fonction pour télécharger l'image QR
     let h_download_qr = {
@@ -40,7 +44,9 @@ pub fn QrGenerator(
         move || async move {
             let ui = ui;
             let saved = saved;
-            to_owned![ui, saved];
+            let logo_data_url = logo_data_url;
+            let logo_ratio = logo_ratio;
+            to_owned![ui, saved, logo_data_url, logo_ratio];
 
             let cur = (*ui.read()).clone();
 
@@ -63,6 +69,15 @@ pub fn QrGenerator(
                 margin: cur.margin,
                 created_at: format!("{}", (Date::now() / 1000.0) as u64),
                 image_data: base64,
+                logo_data_url: {
+                    let s = logo_data_url.read().clone();
+                    if s.is_empty() {
+                        None
+                    } else {
+                        Some(s)
+                    }
+                },
+                logo_ratio: Some(*logo_ratio.read()),
             };
 
             if save_qr(saved_q).await.is_ok() {
@@ -83,8 +98,16 @@ pub fn QrGenerator(
         let margin = ui().margin;
 
         if !text.is_empty() {
+            let logo_data = logo_data_url.read().clone();
+            let ratio = *logo_ratio.read();
             spawn(async move {
-                match generate_qr_code(text, size, transparent, margin).await {
+                let logo_opt = if logo_data.is_empty() {
+                    None
+                } else {
+                    Some(logo_data)
+                };
+                match generate_qr_code(text, size, transparent, margin, logo_opt, Some(ratio)).await
+                {
                     Ok(data_url) => qr_image.set(data_url),
                     Err(e) => eprintln!("generate error: {}", e),
                 }
@@ -112,6 +135,57 @@ pub fn QrGenerator(
                     }
                     div { class: "s8 padding",
                         div { class: "row",
+                            // Logo input and ratio
+                            div { class: "field label border max",
+                                label { class: "active", "Logo (optionnel)" }
+                                input {
+                                    r#type: "file",
+                                    accept: ".png,.jpg,.jpeg",
+                                }
+                            }
+                            // Petit champ texte pour coller une data URL ou URL d'image
+                            div { class: "field label border max",
+                                label { class: "active", "Logo data URL (coller data:image/... ou URL)" }
+                                input {
+                                    r#type: "text",
+                                    placeholder: "data:image/png;base64,... ou https://...",
+                                    value: "{logo_data_url.read()}",
+                                    oninput: move |e| {
+                                        logo_data_url.set(e.value());
+                                    }
+                                }
+                            }
+                            div { class: "field label suffix border",
+                                label { class: "active", "Taille logo" }
+                                input {
+                                    r#type: "range",
+                                    min: "0",
+                                    max: "0.5",
+                                    step: "0.01",
+                                    value: "{logo_ratio.read()}",
+                                    oninput: move |e| {
+                                        if let Ok(v) = e.value().parse::<f64>() {
+                                            logo_ratio.set(v);
+                                            // Trigger regeneration immediately
+                                            let text = ui.read().text.clone();
+                                            let size = ui.read().size;
+                                            let transparent = ui.read().transparent;
+                                            let margin = ui.read().margin;
+                                            let logo = logo_data_url.read().clone();
+                                            let ratio = *logo_ratio.read();
+                                            if !text.is_empty() {
+                                                spawn(async move {
+                                                    let logo_opt = if logo.is_empty() { None } else { Some(logo) };
+                                                    match generate_qr_code(text, size, transparent, margin, logo_opt, Some(ratio)).await {
+                                                        Ok(data_url) => qr_image.set(data_url),
+                                                        Err(e) => eprintln!("generate error: {}", e),
+                                                    }
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             div { class: "field label border max",
                                 input {
                                     r#type: "text",

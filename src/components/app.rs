@@ -23,6 +23,8 @@ pub fn App() -> Element {
         size: 256,
         transparent: false,
         margin: crate::models::qr_code::MarginEnabled(true),
+        logo_data_url: None,
+        logo_ratio: Some(0.20),
     });
     let saved = use_signal(Vec::<SavedQr>::new);
 

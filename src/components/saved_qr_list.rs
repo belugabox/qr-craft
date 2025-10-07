@@ -26,6 +26,8 @@ pub fn SavedQrList(
                 size: 256,
                 transparent: false,
                 margin: crate::models::qr_code::MarginEnabled(true),
+                logo_data_url: None,
+                logo_ratio: Some(0.20),
             });
             screen.set(super::app::Screen::Edit);
         }
@@ -39,6 +41,8 @@ pub fn SavedQrList(
                 size: qr.size,
                 transparent: qr.transparent,
                 margin: qr.margin,
+                logo_data_url: qr.logo_data_url.clone(),
+                logo_ratio: qr.logo_ratio,
             });
             screen.set(super::app::Screen::Edit);
         }
