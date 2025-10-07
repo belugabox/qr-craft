@@ -6,7 +6,7 @@ mod components;
 mod config;
 mod models;
 mod services;
-mod utils;
+mod theme;
 
 use components::app::App;
 
