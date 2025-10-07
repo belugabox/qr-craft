@@ -1,4 +1,4 @@
-use crate::models::qr_code::{SavedQr, UIQr};
+use crate::models::qr_code::{SavedQr, UIQr, LogoId};
 use crate::services::qr_code::{delete_saved, list_saved};
 use dioxus::prelude::*;
 
@@ -26,7 +26,7 @@ pub fn SavedQrList(
                 size: 256,
                 transparent: false,
                 margin: crate::models::qr_code::MarginEnabled(true),
-                logo_data_url: None,
+                logo_id: LogoId::None,
                 logo_ratio: Some(0.20),
             });
             screen.set(super::app::Screen::Edit);
@@ -35,13 +35,14 @@ pub fn SavedQrList(
 
     let h_edit_qr = {
         move |qr: SavedQr| async move {
+            let mut qr = qr.clone();
             ui.set(UIQr {
                 id: qr.id.clone(),
                 text: qr.text.clone(),
                 size: qr.size,
                 transparent: qr.transparent,
                 margin: qr.margin,
-                logo_data_url: qr.logo_data_url.clone(),
+                logo_id: qr.get_logo_id(),
                 logo_ratio: qr.logo_ratio,
             });
             screen.set(super::app::Screen::Edit);
@@ -89,7 +90,8 @@ pub fn SavedQrList(
                                         div { class: "row",
                                             div { class: "bg-checkered",
                                                 img {
-                                                    src: "data:image/png;base64,{qr.image_data}",
+                                                    src: qr.image_data_url.clone(),
+                                                    alt: "QR code",
                                                     width: "96",
                                                     height: "96",
                                                 }

@@ -2,7 +2,7 @@
 use crate::components::header::Header;
 use crate::components::qr_generator::QrGenerator;
 use crate::components::saved_qr_list::SavedQrList;
-use crate::models::qr_code::{SavedQr, UIQr};
+use crate::models::qr_code::{MarginEnabled, SavedQr, UIQr, LogoId};
 use crate::theme::{Theme, ThemeMode};
 use dioxus::prelude::*;
 
@@ -23,7 +23,7 @@ pub fn App() -> Element {
         size: 256,
         transparent: false,
         margin: crate::models::qr_code::MarginEnabled(true),
-        logo_data_url: None,
+        logo_id: LogoId::None,
         logo_ratio: Some(0.20),
     });
     let saved = use_signal(Vec::<SavedQr>::new);

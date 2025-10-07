@@ -1,9 +1,9 @@
-use crate::models::qr_code::{MarginEnabled, SavedQr, UIQr};
+use crate::models::qr_code::{LogoId, MarginEnabled, SavedQr, UIQr};
 use crate::services::qr_code::{generate_qr_code, list_saved, save_qr};
 use dioxus::logger::tracing;
 use dioxus::prelude::*;
 use js_sys::Date;
-use web_sys::{wasm_bindgen::closure::Closure, wasm_bindgen::JsCast, window, HtmlElement};
+use web_sys::{wasm_bindgen::JsCast, window, HtmlElement};
 
 #[component]
 pub fn QrGenerator(
@@ -15,10 +15,6 @@ pub fn QrGenerator(
 
     // Signal séparé pour l'image générée afin d'éviter les boucles infinies
     let mut qr_image = use_signal(String::new);
-    // Signal pour le logo (data URL)
-    let mut logo_data_url = use_signal(|| String::new());
-    // Signal pour le ratio du logo (0.0 - 0.5)
-    let mut logo_ratio = use_signal(|| 0.20_f64);
 
     // Fonction pour télécharger l'image QR
     let h_download_qr = {
@@ -44,9 +40,7 @@ pub fn QrGenerator(
         move || async move {
             let ui = ui;
             let saved = saved;
-            let logo_data_url = logo_data_url;
-            let logo_ratio = logo_ratio;
-            to_owned![ui, saved, logo_data_url, logo_ratio];
+            to_owned![ui, saved];
 
             let cur = (*ui.read()).clone();
 
@@ -55,7 +49,7 @@ pub fn QrGenerator(
                 return;
             }
 
-            let base64 = image_data
+            let _base64 = image_data
                 .split_once(',')
                 .map(|(_, b64)| b64)
                 .unwrap_or(&image_data)
@@ -68,16 +62,11 @@ pub fn QrGenerator(
                 transparent: cur.transparent,
                 margin: cur.margin,
                 created_at: format!("{}", (Date::now() / 1000.0) as u64),
-                image_data: base64,
-                logo_data_url: {
-                    let s = logo_data_url.read().clone();
-                    if s.is_empty() {
-                        None
-                    } else {
-                        Some(s)
-                    }
-                },
-                logo_ratio: Some(*logo_ratio.read()),
+                image_data_url: image_data,
+                logo_id: Some(cur.logo_id.clone()),
+                logo_ratio: cur.logo_ratio,
+                legacy_logo_data_url: None,
+                legacy_logo_ratio: None,
             };
 
             if save_qr(saved_q).await.is_ok() {
@@ -96,17 +85,13 @@ pub fn QrGenerator(
         let size = ui().size;
         let transparent = ui().transparent;
         let margin = ui().margin;
+        let logo_id = ui().logo_id.clone();
+        let logo_ratio = ui().logo_ratio;
 
         if !text.is_empty() {
-            let logo_data = logo_data_url.read().clone();
-            let ratio = *logo_ratio.read();
+            let ratio = logo_ratio.unwrap_or(0.20);
             spawn(async move {
-                let logo_opt = if logo_data.is_empty() {
-                    None
-                } else {
-                    Some(logo_data)
-                };
-                match generate_qr_code(text, size, transparent, margin, logo_opt, Some(ratio)).await
+                match generate_qr_code(text, size, transparent, margin, logo_id, Some(ratio)).await
                 {
                     Ok(data_url) => qr_image.set(data_url),
                     Err(e) => eprintln!("generate error: {}", e),
@@ -135,25 +120,24 @@ pub fn QrGenerator(
                     }
                     div { class: "s8 padding",
                         div { class: "row",
-                            // Logo input and ratio
+                            // Logo selector
                             div { class: "field label border max",
                                 label { class: "active", "Logo (optionnel)" }
-                                input {
-                                    r#type: "file",
-                                    accept: ".png,.jpg,.jpeg",
+                                select {
+                                    value: "{ui.read().logo_id.as_select_value()}",
+                                    onchange: move |e| {
+                                        let mut v = (*ui.read()).clone();
+                                        v.logo_id = LogoId::from_select_value(&e.value());
+                                        ui.set(v);
+                                    },
+                                    option { value: "", "Aucun" }
+                                    option { value: "facebook", "Facebook" }
+                                    option { value: "whatsapp", "WhatsApp" }
+                                    option { value: "facebook_color", "Facebook (coloré)" }
+                                    option { value: "whatsapp_color", "WhatsApp (coloré)" }
+                                    option { value: "instagram_color", "Instagram (coloré)" }
                                 }
-                            }
-                            // Petit champ texte pour coller une data URL ou URL d'image
-                            div { class: "field label border max",
-                                label { class: "active", "Logo data URL (coller data:image/... ou URL)" }
-                                input {
-                                    r#type: "text",
-                                    placeholder: "data:image/png;base64,... ou https://...",
-                                    value: "{logo_data_url.read()}",
-                                    oninput: move |e| {
-                                        logo_data_url.set(e.value());
-                                    }
-                                }
+                                i { "arrow_drop_down" }
                             }
                             div { class: "field label suffix border",
                                 label { class: "active", "Taille logo" }
@@ -162,26 +146,12 @@ pub fn QrGenerator(
                                     min: "0",
                                     max: "0.5",
                                     step: "0.01",
-                                    value: "{logo_ratio.read()}",
+                                    value: "{ui.read().logo_ratio.unwrap_or(0.20)}",
                                     oninput: move |e| {
                                         if let Ok(v) = e.value().parse::<f64>() {
-                                            logo_ratio.set(v);
-                                            // Trigger regeneration immediately
-                                            let text = ui.read().text.clone();
-                                            let size = ui.read().size;
-                                            let transparent = ui.read().transparent;
-                                            let margin = ui.read().margin;
-                                            let logo = logo_data_url.read().clone();
-                                            let ratio = *logo_ratio.read();
-                                            if !text.is_empty() {
-                                                spawn(async move {
-                                                    let logo_opt = if logo.is_empty() { None } else { Some(logo) };
-                                                    match generate_qr_code(text, size, transparent, margin, logo_opt, Some(ratio)).await {
-                                                        Ok(data_url) => qr_image.set(data_url),
-                                                        Err(e) => eprintln!("generate error: {}", e),
-                                                    }
-                                                });
-                                            }
+                                            let mut ui_val = (*ui.read()).clone();
+                                            ui_val.logo_ratio = Some(v);
+                                            ui.set(ui_val);
                                         }
                                     }
                                 }
