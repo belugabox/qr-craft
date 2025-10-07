@@ -55,13 +55,8 @@ pub fn QrGenerator(
                 .unwrap_or(&image_data)
                 .to_string();
 
-            let id = cur
-                .editing_id
-                .clone()
-                .unwrap_or_else(|| format!("qr-{}", fastrand::u64(..)));
-
             let saved_q = SavedQr {
-                id: id.clone(),
+                id: cur.id.clone(),
                 text: cur.text.clone(),
                 size: cur.size,
                 transparent: cur.transparent,
@@ -74,8 +69,7 @@ pub fn QrGenerator(
                 if let Ok(list) = list_saved().await {
                     saved.set(list);
                 }
-                let mut v = (*ui.read()).clone();
-                v.editing_id = Some(id);
+                let v = (*ui.read()).clone();
                 ui.set(v);
             }
         }

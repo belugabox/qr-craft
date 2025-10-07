@@ -21,11 +21,11 @@ pub fn SavedQrList(
     let h_create_new_qr = {
         move || async move {
             ui.set(UIQr {
+                id: format!("qr-{}", fastrand::u64(..)),
                 text: crate::config::constants::DEFAULT_QR_TEXT.into(),
                 size: 256,
                 transparent: false,
                 margin: crate::models::qr_code::MarginEnabled(true),
-                editing_id: None,
             });
             screen.set(super::app::Screen::Edit);
         }
@@ -34,11 +34,11 @@ pub fn SavedQrList(
     let h_edit_qr = {
         move |qr: SavedQr| async move {
             ui.set(UIQr {
+                id: qr.id.clone(),
                 text: qr.text.clone(),
                 size: qr.size,
                 transparent: qr.transparent,
                 margin: qr.margin,
-                editing_id: Some(qr.id.clone()),
             });
             screen.set(super::app::Screen::Edit);
         }

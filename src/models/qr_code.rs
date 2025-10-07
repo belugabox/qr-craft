@@ -15,11 +15,11 @@ impl Default for MarginEnabled {
 /// Configuration d'un QR code pour l'interface utilisateur
 #[derive(Clone, Default, Debug)]
 pub struct UIQr {
+    pub id: String,
     pub text: String,
     pub size: u32,
     pub transparent: bool,
     pub margin: MarginEnabled,
-    pub editing_id: Option<String>,
 }
 
 /// Représentation d'un QR code sauvegardé
