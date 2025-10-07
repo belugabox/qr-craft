@@ -59,54 +59,6 @@
       },
       "problemMatcher": ["$rustc"],
       "group": "test"
-    },
-    {
-      "label": "tailwind: build",
-      "type": "shell",
-      "command": "npx",
-      "args": [
-        "tailwindcss",
-        "-i",
-        "./input.css",
-        "-o",
-        "./assets/tailwind.css"
-      ],
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      },
-      "problemMatcher": [],
-      "group": "build"
-    },
-    {
-      "label": "tailwind: watch",
-      "type": "shell",
-      "command": "npx",
-      "args": [
-        "tailwindcss",
-        "-i",
-        "./input.css",
-        "-o",
-        "./assets/tailwind.css",
-        "--watch"
-      ],
-      "isBackground": true,
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      },
-      "problemMatcher": [],
-      "group": {
-        "kind": "build",
-        "isDefault": false
-      }
-    },
-    {
-      "label": "dev: serve",
-      "dependsOn": ["dx serve (web)", "tailwind: watch"],
-      "dependsOrder": "parallel",
-      "problemMatcher": [],
-      "group": "build"
     }
   ]
 }

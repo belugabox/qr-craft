@@ -1,0 +1,33 @@
+/* Custom styles for Beer CSS */
+
+/* Classe pour le fond en damier derrière les QR codes */
+.bg-checkered {
+  --squareSize: 8px;
+  background-color: var(--surface);
+  background-image: linear-gradient(
+      45deg,
+      var(--surface-variant) 25%,
+      transparent 25%
+    ),
+    linear-gradient(135deg, var(--surface-variant) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--surface-variant) 75%),
+    linear-gradient(135deg, transparent 75%, var(--surface-variant) 75%);
+  background-position: 0 0, var(--squareSize) 0,
+    var(--squareSize) calc(-1 * var(--squareSize)),
+    0 calc(-1 * var(--squareSize));
+  background-size: calc(2 * var(--squareSize)) calc(2 * var(--squareSize));
+}
+
+.truncate-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.hover-opacity:hover {
+  opacity: 0.8;
+}
