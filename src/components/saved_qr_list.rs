@@ -1,4 +1,5 @@
-use crate::models::qr_code::{LogoId, SavedQr, UIQr};
+use crate::models::logo::LogoId;
+use crate::models::qr_code::{SavedQr, UIQr};
 use crate::services::qr_code::{delete_saved, list_saved};
 use dioxus::prelude::*;
 

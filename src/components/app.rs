@@ -3,7 +3,8 @@ use crate::components::header::Header;
 use crate::components::qr_generator::QrGenerator;
 use crate::components::saved_qr_list::SavedQrList;
 use crate::config::constants;
-use crate::models::qr_code::{LogoId, MarginEnabled, SavedQr, UIQr};
+use crate::models::logo::LogoId;
+use crate::models::qr_code::{MarginEnabled, SavedQr, UIQr};
 use crate::theme::{Theme, ThemeMode};
 use dioxus::prelude::*;
 

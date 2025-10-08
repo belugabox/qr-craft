@@ -1,4 +1,5 @@
-use crate::models::qr_code::{LogoId, MarginEnabled, SavedQr, UIQr};
+use crate::models::logo::LogoId;
+use crate::models::qr_code::{MarginEnabled, SavedQr, UIQr};
 use crate::services::qr_code::{generate_qr_code, list_saved, save_qr};
 use dioxus::logger::tracing;
 use dioxus::prelude::*;

@@ -4,7 +4,8 @@
 use dioxus::prelude::*;
 use image::{GenericImageView, ImageEncoder};
 
-use crate::models::qr_code::{LogoId, MarginEnabled, SavedQr};
+use crate::models::logo::LogoId;
+use crate::models::qr_code::{MarginEnabled, SavedQr};
 
 use std::fs;
 use std::path::Path;
@@ -494,7 +495,8 @@ mod tests {
 
     #[test]
     fn test_models_serialization() {
-        use crate::models::qr_code::{LogoId, MarginEnabled, SavedQr, UIQr};
+        use crate::models::logo::LogoId;
+        use crate::models::qr_code::{MarginEnabled, SavedQr, UIQr};
 
         // Test UIQr avec logo_id
         let _ui_qr = UIQr {
