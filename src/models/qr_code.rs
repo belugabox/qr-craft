@@ -90,7 +90,7 @@ pub struct UIQr {
     // Type de logo sélectionné
     pub logo_id: LogoId,
     // Optional logo size ratio (fraction of QR width)
-    pub logo_ratio: Option<f64>,
+    pub logo_ratio: f64,
 }
 
 /// Représentation d'un QR code sauvegardé
@@ -105,32 +105,7 @@ pub struct SavedQr {
     pub image_data_url: String,
     // Nouveau format
     #[serde(default)]
-    pub logo_id: Option<LogoId>,
+    pub logo_id: LogoId,
     #[serde(default)]
-    pub logo_ratio: Option<f64>,
-    // Ancien format pour compatibilité arrière
-    #[serde(rename = "logo_data_url")]
-    pub legacy_logo_data_url: Option<String>,
-    pub legacy_logo_ratio: Option<f64>,
-}
-
-impl SavedQr {
-    /// Migre les anciens formats vers le nouveau
-    pub fn migrate_legacy_fields(&mut self) {
-        // Si on a des données legacy mais pas de logo_id, essayer de migrer
-        if self.logo_id.is_none() && self.legacy_logo_data_url.is_some() {
-            // Pour l'instant, on ne peut pas déterminer automatiquement le type de logo
-            // depuis les données base64, donc on laisse comme None
-            // Mais on peut copier le ratio si présent
-            if self.logo_ratio.is_none() && self.legacy_logo_ratio.is_some() {
-                self.logo_ratio = self.legacy_logo_ratio;
-            }
-        }
-    }
-
-    /// Obtient logo_id, en migrant si nécessaire
-    pub fn get_logo_id(&mut self) -> LogoId {
-        self.migrate_legacy_fields();
-        self.logo_id.clone().unwrap_or(LogoId::None)
-    }
+    pub logo_ratio: f64,
 }

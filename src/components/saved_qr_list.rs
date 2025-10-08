@@ -1,4 +1,4 @@
-use crate::models::qr_code::{SavedQr, UIQr, LogoId};
+use crate::models::qr_code::{LogoId, SavedQr, UIQr};
 use crate::services::qr_code::{delete_saved, list_saved};
 use dioxus::prelude::*;
 
@@ -27,7 +27,7 @@ pub fn SavedQrList(
                 transparent: false,
                 margin: crate::models::qr_code::MarginEnabled(true),
                 logo_id: LogoId::None,
-                logo_ratio: Some(0.20),
+                logo_ratio: 0.20,
             });
             screen.set(super::app::Screen::Edit);
         }
@@ -42,7 +42,7 @@ pub fn SavedQrList(
                 size: qr.size,
                 transparent: qr.transparent,
                 margin: qr.margin,
-                logo_id: qr.get_logo_id(),
+                logo_id: qr.logo_id,
                 logo_ratio: qr.logo_ratio,
             });
             screen.set(super::app::Screen::Edit);

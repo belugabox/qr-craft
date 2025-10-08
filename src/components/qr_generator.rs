@@ -63,10 +63,8 @@ pub fn QrGenerator(
                 margin: cur.margin,
                 created_at: format!("{}", (Date::now() / 1000.0) as u64),
                 image_data_url: image_data,
-                logo_id: Some(cur.logo_id.clone()),
+                logo_id: cur.logo_id,
                 logo_ratio: cur.logo_ratio,
-                legacy_logo_data_url: None,
-                legacy_logo_ratio: None,
             };
 
             if save_qr(saved_q).await.is_ok() {
@@ -89,10 +87,8 @@ pub fn QrGenerator(
         let logo_ratio = ui().logo_ratio;
 
         if !text.is_empty() {
-            let ratio = logo_ratio.unwrap_or(0.20);
             spawn(async move {
-                match generate_qr_code(text, size, transparent, margin, logo_id, Some(ratio)).await
-                {
+                match generate_qr_code(text, size, transparent, margin, logo_id, logo_ratio).await {
                     Ok(data_url) => qr_image.set(data_url),
                     Err(e) => eprintln!("generate error: {}", e),
                 }
@@ -146,14 +142,14 @@ pub fn QrGenerator(
                                     min: "0",
                                     max: "0.5",
                                     step: "0.01",
-                                    value: "{ui.read().logo_ratio.unwrap_or(0.20)}",
+                                    value: "{ui.read().logo_ratio}",
                                     oninput: move |e| {
                                         if let Ok(v) = e.value().parse::<f64>() {
                                             let mut ui_val = (*ui.read()).clone();
-                                            ui_val.logo_ratio = Some(v);
+                                            ui_val.logo_ratio = v;
                                             ui.set(ui_val);
                                         }
-                                    }
+                                    },
                                 }
                             }
                             div { class: "field label border max",

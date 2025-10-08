@@ -22,9 +22,13 @@ fn is_svg_bytes(bytes: &[u8]) -> bool {
     false
 }
 
-fn rasterize_svg_to_rgba(svg_bytes: &[u8], target_size: u32, logo_id: &LogoId) -> Result<image::RgbaImage, String> {
+fn rasterize_svg_to_rgba(
+    svg_bytes: &[u8],
+    target_size: u32,
+    logo_id: &LogoId,
+) -> Result<image::RgbaImage, String> {
     use resvg::tiny_skia::Pixmap;
-    use resvg::usvg::{FitTo, Options, ShapeRendering, TextRendering, ImageRendering, Tree};
+    use resvg::usvg::{FitTo, ImageRendering, Options, ShapeRendering, TextRendering, Tree};
 
     let svg_str = std::str::from_utf8(svg_bytes).map_err(|e| e.to_string())?;
 
@@ -35,7 +39,7 @@ fn rasterize_svg_to_rgba(svg_bytes: &[u8], target_size: u32, logo_id: &LogoId) -
         LogoId::WhatsApp => svg_str.replace("currentColor", "#000000"), // Noir pour WhatsApp monochrome
         LogoId::WhatsAppColor => svg_str.replace("currentColor", "#25D366"), // Vert WhatsApp officiel
         LogoId::InstagramColor => svg_str.replace("currentColor", "#E4405F"), // Rose Instagram officiel
-        LogoId::None => svg_str.replace("currentColor", "#000000"), // Noir par défaut
+        LogoId::None => svg_str.replace("currentColor", "#000000"),           // Noir par défaut
     };
 
     // Configurer les options pour une qualité maximale
@@ -81,8 +85,11 @@ fn rasterize_svg_to_rgba(svg_bytes: &[u8], target_size: u32, logo_id: &LogoId) -
         .ok_or("failed to create high-res RgbaImage from svg raster")?;
 
     // Redimensionner vers la taille cible avec un excellent filtre
-    let final_img = image::DynamicImage::ImageRgba8(high_res_img)
-        .resize(target_size, target_size, image::imageops::FilterType::Lanczos3);
+    let final_img = image::DynamicImage::ImageRgba8(high_res_img).resize(
+        target_size,
+        target_size,
+        image::imageops::FilterType::Lanczos3,
+    );
 
     Ok(final_img.to_rgba8())
 }
@@ -94,7 +101,7 @@ pub async fn generate_qr_code(
     transparent: bool,
     margin: MarginEnabled,
     logo_id: LogoId,
-    logo_ratio: Option<f64>,
+    logo_ratio: f64,
 ) -> Result<String, ServerFnError> {
     // Charger le fichier SVG depuis assets/logo si un logo est sélectionné
     let logo_bytes_opt: Option<Vec<u8>> = if let Some(filename) = logo_id.as_filename() {
@@ -111,13 +118,18 @@ pub async fn generate_qr_code(
     } else {
         None
     };
-
     let logo_slice = logo_bytes_opt.as_deref();
 
-    let logo_ratio = logo_ratio.unwrap_or(0.20);
-
-    let bytes = render_qr_png_bytes(&text, size, transparent, margin, logo_slice, Some(logo_id), logo_ratio)
-        .map_err(|e| ServerFnError::new(e))?;
+    let bytes = render_qr_png_bytes(
+        &text,
+        size,
+        transparent,
+        margin,
+        logo_slice,
+        Some(logo_id),
+        logo_ratio,
+    )
+    .map_err(|e| ServerFnError::new(e))?;
     let base64_image = base64::encode(&bytes);
     let data_url = format!("data:image/png;base64,{}", base64_image);
     Ok(data_url)
@@ -152,8 +164,6 @@ pub async fn list_saved() -> Result<Vec<SavedQr>, ServerFnError> {
                 match fs::read_to_string(&path) {
                     Ok(s) => match serde_json::from_str::<SavedQr>(&s) {
                         Ok(mut qr) => {
-                            // Migrer les anciens formats vers le nouveau
-                            qr.migrate_legacy_fields();
                             res.push(qr);
                         }
                         Err(e) => {
@@ -267,7 +277,11 @@ pub fn render_qr_png_bytes(
             // Calculer la taille cible du logo pour rasteriser le SVG directement
             let logo_w = ((width as f64) * ratio).max(1.0).round() as u32;
             // Rasteriser l'SVG directement à la taille cible pour éviter le redimensionnement
-            let rgba_img = rasterize_svg_to_rgba(logo_bytes, logo_w, logo_id.as_ref().unwrap_or(&LogoId::None))?;
+            let rgba_img = rasterize_svg_to_rgba(
+                logo_bytes,
+                logo_w,
+                logo_id.as_ref().unwrap_or(&LogoId::None),
+            )?;
             image::DynamicImage::ImageRgba8(rgba_img)
         } else {
             // Charger PNG/JPEG normalement
@@ -347,8 +361,16 @@ mod tests {
 
     #[test]
     fn test_render_qr_png_bytes_transparent() {
-        let bytes = render_qr_png_bytes("transparent", 128, true, MarginEnabled(true), None, None, 0.20)
-            .expect("render failed");
+        let bytes = render_qr_png_bytes(
+            "transparent",
+            128,
+            true,
+            MarginEnabled(true),
+            None,
+            None,
+            0.20,
+        )
+        .expect("render failed");
         let png_magic = [0x89u8, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
         assert_eq!(&bytes[0..8], &png_magic);
     }
@@ -449,7 +471,7 @@ mod tests {
             transparent: false,
             margin: MarginEnabled(true),
             logo_id: LogoId::Facebook,
-            logo_ratio: Some(0.2),
+            logo_ratio: 0.2,
         };
 
         // Test SavedQr avec logo_id
@@ -461,17 +483,15 @@ mod tests {
             margin: MarginEnabled(true),
             created_at: "1234567890".to_string(),
             image_data_url: "data:image/png;base64,test".to_string(),
-            logo_id: Some(LogoId::WhatsApp),
-            logo_ratio: Some(0.15),
-            legacy_logo_data_url: None,
-            legacy_logo_ratio: None,
+            logo_id: LogoId::WhatsApp,
+            logo_ratio: 0.15,
         };
 
         // Test sérialisation/désérialisation
         let serialized = serde_json::to_string(&saved_qr).unwrap();
-        let mut deserialized: SavedQr = serde_json::from_str(&serialized).unwrap();
+        let deserialized: SavedQr = serde_json::from_str(&serialized).unwrap();
 
-        assert_eq!(deserialized.get_logo_id(), LogoId::WhatsApp);
-        assert_eq!(deserialized.logo_ratio, Some(0.15));
+        assert_eq!(deserialized.logo_id, LogoId::WhatsApp);
+        assert_eq!(deserialized.logo_ratio, 0.15);
     }
 }

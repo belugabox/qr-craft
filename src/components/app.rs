@@ -2,7 +2,8 @@
 use crate::components::header::Header;
 use crate::components::qr_generator::QrGenerator;
 use crate::components::saved_qr_list::SavedQrList;
-use crate::models::qr_code::{MarginEnabled, SavedQr, UIQr, LogoId};
+use crate::config::constants;
+use crate::models::qr_code::{LogoId, MarginEnabled, SavedQr, UIQr};
 use crate::theme::{Theme, ThemeMode};
 use dioxus::prelude::*;
 
@@ -19,12 +20,12 @@ pub fn App() -> Element {
     let screen = use_signal(|| Screen::List); // Commencer par l'écran de liste
     let ui = use_signal(|| UIQr {
         id: format!("qr-{}", fastrand::u64(..)),
-        text: crate::config::constants::DEFAULT_QR_TEXT.into(),
+        text: constants::DEFAULT_QR_TEXT.into(),
         size: 256,
         transparent: false,
-        margin: crate::models::qr_code::MarginEnabled(true),
+        margin: MarginEnabled(true),
         logo_id: LogoId::None,
-        logo_ratio: Some(0.20),
+        logo_ratio: 0.20,
     });
     let saved = use_signal(Vec::<SavedQr>::new);
 
