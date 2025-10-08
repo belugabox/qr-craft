@@ -1,5 +1,4 @@
-use crate::models::logo::LogoId;
-use crate::models::qr_code::{SavedQr, UIQr};
+use crate::models::{SavedQr, UIQr};
 use crate::services::qr_code::{delete_saved, list_saved};
 use dioxus::prelude::*;
 
@@ -8,28 +7,24 @@ pub fn SavedQrList(
     ui: Signal<UIQr>,
     saved: Signal<Vec<SavedQr>>,
     screen: Signal<super::app::Screen>,
+    is_loading: Signal<bool>,
 ) -> Element {
     // Charger automatiquement la liste des QR codes sauvegardés au démarrage
     use_effect(move || {
         let mut saved = saved;
+        let mut is_loading = is_loading;
         spawn(async move {
+            is_loading.set(true);
             if let Ok(list) = list_saved().await {
                 saved.set(list);
             }
+            is_loading.set(false);
         });
     });
 
     let h_create_new_qr = {
         move || async move {
-            ui.set(UIQr {
-                id: format!("qr-{}", fastrand::u64(..)),
-                text: crate::config::constants::DEFAULT_QR_TEXT.into(),
-                size: 256,
-                transparent: false,
-                margin: crate::models::qr_code::MarginEnabled(true),
-                logo_id: LogoId::None,
-                logo_ratio: 0.20,
-            });
+            ui.set(UIQr { ..UIQr::default() });
             screen.set(super::app::Screen::Edit);
         }
     };

@@ -13,51 +13,86 @@ pub enum LogoId {
 }
 
 impl LogoId {
-    /// Convertit l'enum en nom de fichier (sans extension)
-    pub fn as_filename(&self) -> Option<&str> {
+    /// Retourne la chaîne de caractères associée au logo
+    pub fn as_str(&self) -> &str {
         match self {
-            LogoId::None => None,
-            LogoId::Facebook => Some("facebook"),
-            LogoId::FacebookColor => Some("facebook_color"),
-            LogoId::WhatsApp => Some("whatsapp"),
-            LogoId::WhatsAppColor => Some("whatsapp_color"),
-            LogoId::InstagramColor => Some("instagram_color"),
-        }
-    }
-
-    /// Convertit depuis un nom de fichier (sans extension)
-    pub fn from_filename(filename: &str) -> Option<Self> {
-        match filename {
-            "facebook" => Some(LogoId::Facebook),
-            "whatsapp" => Some(LogoId::WhatsApp),
-            "facebook_color" => Some(LogoId::FacebookColor),
-            "whatsapp_color" => Some(LogoId::WhatsAppColor),
-            "instagram_color" => Some(LogoId::InstagramColor),
-            _ => None,
-        }
-    }
-
-    /// Convertit en valeur pour le select HTML
-    pub fn as_select_value(&self) -> &str {
-        match self {
-            LogoId::None => "",
+            LogoId::None => "none",
             LogoId::Facebook => "facebook",
-            LogoId::WhatsApp => "whatsapp",
             LogoId::FacebookColor => "facebook_color",
+            LogoId::WhatsApp => "whatsapp",
             LogoId::WhatsAppColor => "whatsapp_color",
             LogoId::InstagramColor => "instagram_color",
         }
     }
 
-    /// Convertit depuis une valeur de select HTML
-    pub fn from_select_value(value: &str) -> Self {
-        match value {
+    /// Convertit depuis une chaîne de caractères
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "none" => LogoId::None,
             "facebook" => LogoId::Facebook,
             "whatsapp" => LogoId::WhatsApp,
             "facebook_color" => LogoId::FacebookColor,
             "whatsapp_color" => LogoId::WhatsAppColor,
             "instagram_color" => LogoId::InstagramColor,
-            _ => LogoId::None,
+            _ => LogoId::default(),
+        }
+    }
+
+    /// Convertit l'enum en nom de fichier (sans extension)
+    pub fn as_filename(&self) -> Option<&str> {
+        match self {
+            LogoId::None => None,
+            _ => Some(self.as_str()),
+        }
+    }
+
+    /// Convertit depuis un nom de fichier (sans extension)
+    pub fn from_filename(filename: &str) -> Self {
+        match filename {
+            "facebook" => LogoId::Facebook,
+            "whatsapp" => LogoId::WhatsApp,
+            "facebook_color" => LogoId::FacebookColor,
+            "whatsapp_color" => LogoId::WhatsAppColor,
+            "instagram_color" => LogoId::InstagramColor,
+            _ => LogoId::default(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+pub enum LogoRatio {
+    Small,
+    #[default]
+    Medium,
+    Large,
+}
+
+impl LogoRatio {
+    /// Retourne la chaîne de caractères associée au ratio de logo
+    pub fn as_str(&self) -> &str {
+        match self {
+            LogoRatio::Small => "small",
+            LogoRatio::Medium => "medium",
+            LogoRatio::Large => "large",
+        }
+    }
+
+    /// Convertit depuis une chaîne de caractères
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "small" => LogoRatio::Small,
+            "medium" => LogoRatio::Medium,
+            "large" => LogoRatio::Large,
+            _ => LogoRatio::default(),
+        }
+    }
+
+    /// Retourne le ratio numérique associé au type de logo
+    pub fn as_ratio(&self) -> f64 {
+        match self {
+            LogoRatio::Small => 0.15,
+            LogoRatio::Medium => 0.20,
+            LogoRatio::Large => 0.25,
         }
     }
 }

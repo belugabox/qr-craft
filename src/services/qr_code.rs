@@ -4,10 +4,11 @@
 use dioxus::prelude::*;
 use image::{GenericImageView, ImageEncoder};
 
-use crate::models::logo::LogoId;
-use crate::models::qr_code::{MarginEnabled, SavedQr};
+use crate::models::{LogoId, LogoRatio, SavedQr};
 
+#[allow(unused_imports)]
 use std::fs;
+#[allow(unused_imports)]
 use std::path::Path;
 
 /// Détecte si les bytes donnés correspondent à un fichier SVG
@@ -117,9 +118,9 @@ pub async fn generate_qr_code(
     text: String,
     size: u32,
     transparent: bool,
-    margin: MarginEnabled,
+    margin: bool,
     logo_id: LogoId,
-    logo_ratio: f64,
+    logo_ratio: LogoRatio,
 ) -> Result<String, ServerFnError> {
     // Charger le fichier SVG depuis assets/logo si un logo est sélectionné
     let logo_bytes_opt: Option<Vec<u8>> = if let Some(filename) = logo_id.as_filename() {
@@ -137,6 +138,7 @@ pub async fn generate_qr_code(
         None
     };
     let logo_slice = logo_bytes_opt.as_deref();
+    let logo_ratio_f64 = logo_ratio.as_ratio();
 
     let bytes = render_qr_png_bytes(
         &text,
@@ -145,7 +147,7 @@ pub async fn generate_qr_code(
         margin,
         logo_slice,
         Some(logo_id),
-        logo_ratio,
+        logo_ratio_f64,
     )
     .map_err(|e| ServerFnError::new(e))?;
     let base64_image = base64::encode(&bytes);
@@ -242,7 +244,7 @@ pub fn render_qr_png_bytes(
     text: &str,
     size: u32,
     transparent: bool,
-    margin: MarginEnabled,
+    margin: bool,
     logo_bytes: Option<&[u8]>,
     logo_id: Option<LogoId>,
     logo_ratio: f64,
@@ -261,7 +263,7 @@ pub fn render_qr_png_bytes(
             255,
             if transparent { 0 } else { 255 },
         ]))
-        .quiet_zone(margin.0) // Utilise directement le boolean
+        .quiet_zone(margin) // Utilise directement le boolean
         .min_dimensions(size, size)
         .build();
 
@@ -385,7 +387,7 @@ mod tests {
 
     #[test]
     fn test_render_qr_png_bytes_basic() {
-        let bytes = render_qr_png_bytes("hello", 128, false, MarginEnabled(true), None, None, 0.20)
+        let bytes = render_qr_png_bytes("hello", 128, false, true, None, None, 0.20)
             .expect("render failed");
         // PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A
         let png_magic = [0x89u8, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
@@ -395,16 +397,8 @@ mod tests {
 
     #[test]
     fn test_render_qr_png_bytes_transparent() {
-        let bytes = render_qr_png_bytes(
-            "transparent",
-            128,
-            true,
-            MarginEnabled(true),
-            None,
-            None,
-            0.20,
-        )
-        .expect("render failed");
+        let bytes = render_qr_png_bytes("transparent", 128, true, true, None, None, 0.20)
+            .expect("render failed");
         let png_magic = [0x89u8, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
         assert_eq!(&bytes[0..8], &png_magic);
     }
@@ -456,7 +450,7 @@ mod tests {
             "test with SVG logo",
             256,
             false,
-            MarginEnabled(true),
+            true,
             Some(&svg_bytes),
             None, // Pas de logo_id connu pour ce test
             0.15,
@@ -474,8 +468,7 @@ mod tests {
         assert_eq!(&png_bytes[0..8], &png_magic);
 
         // Le PNG devrait être plus grand qu'un QR sans logo (car il contient le logo)
-        let empty_qr =
-            render_qr_png_bytes("test", 256, false, MarginEnabled(true), None, None, 0.15).unwrap();
+        let empty_qr = render_qr_png_bytes("test", 256, false, true, None, None, 0.15).unwrap();
         assert!(
             png_bytes.len() > empty_qr.len(),
             "QR with logo should be larger than without"
@@ -495,8 +488,7 @@ mod tests {
 
     #[test]
     fn test_models_serialization() {
-        use crate::models::logo::LogoId;
-        use crate::models::qr_code::{MarginEnabled, SavedQr, UIQr};
+        use crate::models::{LogoId, LogoRatio, SavedQr, UIQr};
 
         // Test UIQr avec logo_id
         let _ui_qr = UIQr {
@@ -504,9 +496,9 @@ mod tests {
             text: "test text".to_string(),
             size: 256,
             transparent: false,
-            margin: MarginEnabled(true),
+            margin: true,
             logo_id: LogoId::Facebook,
-            logo_ratio: 0.2,
+            logo_ratio: LogoRatio::Medium,
         };
 
         // Test SavedQr avec logo_id
@@ -515,11 +507,11 @@ mod tests {
             text: "test text".to_string(),
             size: 256,
             transparent: false,
-            margin: MarginEnabled(true),
+            margin: true,
             created_at: "1234567890".to_string(),
             image_data_url: "data:image/png;base64,test".to_string(),
             logo_id: LogoId::WhatsApp,
-            logo_ratio: 0.15,
+            logo_ratio: LogoRatio::Medium,
         };
 
         // Test sérialisation/désérialisation
@@ -527,6 +519,6 @@ mod tests {
         let deserialized: SavedQr = serde_json::from_str(&serialized).unwrap();
 
         assert_eq!(deserialized.logo_id, LogoId::WhatsApp);
-        assert_eq!(deserialized.logo_ratio, 0.15);
+        assert_eq!(deserialized.logo_ratio, LogoRatio::Medium);
     }
 }

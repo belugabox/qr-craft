@@ -2,9 +2,7 @@
 use crate::components::header::Header;
 use crate::components::qr_generator::QrGenerator;
 use crate::components::saved_qr_list::SavedQrList;
-use crate::config::constants;
-use crate::models::logo::LogoId;
-use crate::models::qr_code::{MarginEnabled, SavedQr, UIQr};
+use crate::models::{SavedQr, UIQr};
 use crate::theme::{Theme, ThemeMode};
 use dioxus::prelude::*;
 
@@ -19,16 +17,9 @@ pub fn App() -> Element {
     use_context_provider(|| Signal::new(ThemeMode::Auto));
 
     let screen = use_signal(|| Screen::List); // Commencer par l'écran de liste
-    let ui = use_signal(|| UIQr {
-        id: format!("qr-{}", fastrand::u64(..)),
-        text: constants::DEFAULT_QR_TEXT.into(),
-        size: 256,
-        transparent: false,
-        margin: MarginEnabled(true),
-        logo_id: LogoId::None,
-        logo_ratio: 0.20,
-    });
+    let ui = use_signal(|| UIQr { ..UIQr::default() });
     let saved = use_signal(Vec::<SavedQr>::new);
+    let is_loading = use_signal(|| false);
 
     rsx! {
         Theme {}
@@ -36,12 +27,23 @@ pub fn App() -> Element {
         main { class: "responsive",
             match screen() {
                 Screen::List => rsx! {
-                    SavedQrList { ui, saved, screen }
+                    SavedQrList {
+                        ui,
+                        saved,
+                        screen,
+                        is_loading,
+                    }
                 },
                 Screen::Edit => rsx! {
-                    QrGenerator { ui, saved, screen }
+                    QrGenerator {
+                        ui,
+                        saved,
+                        screen,
+                        is_loading,
+                    }
                 },
             }
         }
+        progress { class: "absolute bottom full", hidden: "{!is_loading()}" }
     }
 }

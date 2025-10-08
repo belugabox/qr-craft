@@ -1,5 +1,4 @@
-use crate::models::logo::LogoId;
-use crate::models::qr_code::{MarginEnabled, SavedQr, UIQr};
+use crate::models::{LogoId, LogoRatio, SavedQr, UIQr};
 use crate::services::qr_code::{generate_qr_code, list_saved, save_qr};
 use dioxus::logger::tracing;
 use dioxus::prelude::*;
@@ -11,6 +10,7 @@ pub fn QrGenerator(
     ui: Signal<UIQr>,
     saved: Signal<Vec<SavedQr>>,
     screen: Signal<super::app::Screen>,
+    is_loading: Signal<bool>,
 ) -> Element {
     tracing::debug!("QrGenerator render: {:?}", ui.read());
 
@@ -19,7 +19,9 @@ pub fn QrGenerator(
 
     // Fonction pour télécharger l'image QR
     let h_download_qr = {
+        let mut is_loading = is_loading;
         move || async move {
+            is_loading.set(true);
             let image_data = qr_image.read().clone();
             if !image_data.is_empty() {
                 if let Some(window) = window() {
@@ -34,13 +36,16 @@ pub fn QrGenerator(
                     }
                 }
             }
+            is_loading.set(false);
         }
     };
 
     let h_save_qr = {
+        let ui = ui;
+        let saved = saved;
+        let mut is_loading = is_loading;
         move || async move {
-            let ui = ui;
-            let saved = saved;
+            is_loading.set(true);
             to_owned![ui, saved];
 
             let cur = (*ui.read()).clone();
@@ -69,6 +74,7 @@ pub fn QrGenerator(
                 let v = (*ui.read()).clone();
                 ui.set(v);
             }
+            is_loading.set(false);
         }
     };
 
@@ -111,46 +117,6 @@ pub fn QrGenerator(
                     }
                     div { class: "s8 padding",
                         div { class: "row",
-                            fieldset {
-                                legend { "Logo" }
-                                div { class: "row",
-                                    div { class: "field suffix label border",
-                                        label { class: "active", "Logo" }
-                                        select {
-                                            value: "{ui.read().logo_id.as_select_value()}",
-                                            onchange: move |e| {
-                                                let mut v = (*ui.read()).clone();
-                                                v.logo_id = LogoId::from_select_value(&e.value());
-                                                ui.set(v);
-                                            },
-                                            option { value: "", "Aucun" }
-                                            option { value: "facebook", "Facebook" }
-                                            option { value: "whatsapp", "WhatsApp" }
-                                            option { value: "facebook_color", "Facebook (coloré)" }
-                                            option { value: "whatsapp_color", "WhatsApp (coloré)" }
-                                            option { value: "instagram_color", "Instagram (coloré)" }
-                                        }
-                                        i { "arrow_drop_down" }
-                                    }
-                                    div { class: "field suffix label border",
-                                        label { class: "active", "Taille" }
-                                        select {
-                                            value: "{ui.read().logo_ratio}",
-                                            onchange: move |e| {
-                                                let mut v = (*ui.read()).clone();
-                                                v.logo_ratio = e.value().parse().unwrap_or(0.2);
-                                                ui.set(v);
-                                            },
-                                            option { value: 0.15, "Petit" }
-                                            option { value: 0.20, "Moyen" }
-                                            option { value: 0.25, "Grand" }
-                                        }
-                                        i { "arrow_drop_down" }
-                                    }
-                                }
-                            }
-                        }
-                        div { class: "row",
                             div { class: "field label border max",
                                 input {
                                     r#type: "text",
@@ -164,6 +130,41 @@ pub fn QrGenerator(
                                     },
                                 }
                                 label { class: "active", "Texte ou URL" }
+                            }
+                        }
+                        div { class: "row",
+                            div { class: "field suffix label border",
+                                label { class: "active", "Logo" }
+                                select {
+                                    value: "{ui.read().logo_id.as_str()}",
+                                    onchange: move |e| {
+                                        let mut v = (*ui.read()).clone();
+                                        v.logo_id = LogoId::from_str(&e.value());
+                                        ui.set(v);
+                                    },
+                                    option { value: "none", "Aucun" }
+                                    option { value: "facebook", "Facebook" }
+                                    option { value: "whatsapp", "WhatsApp" }
+                                    option { value: "facebook_color", "Facebook (coloré)" }
+                                    option { value: "whatsapp_color", "WhatsApp (coloré)" }
+                                    option { value: "instagram_color", "Instagram (coloré)" }
+                                }
+                                i { "arrow_drop_down" }
+                            }
+                            div { class: "field suffix label border",
+                                label { class: "active", "Taille du logo" }
+                                select {
+                                    value: "{ui.read().logo_ratio.as_str()}",
+                                    onchange: move |e| {
+                                        let mut v = (*ui.read()).clone();
+                                        v.logo_ratio = LogoRatio::from_str(&e.value());
+                                        ui.set(v);
+                                    },
+                                    option { value: "small", "Petit" }
+                                    option { value: "medium", "Moyen" }
+                                    option { value: "large", "Grand" }
+                                }
+                                i { "arrow_drop_down" }
                             }
                         }
                         div { class: "row",
@@ -187,10 +188,10 @@ pub fn QrGenerator(
                             label { class: "checkbox",
                                 input {
                                     r#type: "checkbox",
-                                    checked: "{ui.read().margin.0}",
+                                    checked: "{ui.read().margin}",
                                     onchange: move |e| {
                                         let mut v = (*ui.read()).clone();
-                                        v.margin = MarginEnabled(e.value() == "on" || e.value() == "true");
+                                        v.margin = e.value() == "on" || e.value() == "true";
                                         ui.set(v);
                                     },
                                 }
@@ -210,8 +211,13 @@ pub fn QrGenerator(
                             }
                         }
                         div { class: "row",
-                            button { onclick: move |_| { h_download_qr() }, "Télécharger le QR Code" }
                             button {
+                                disabled: "{is_loading()}",
+                                onclick: move |_| { h_download_qr() },
+                                "Télécharger le QR Code"
+                            }
+                            button {
+                                disabled: "{is_loading()}",
                                 class: "circle secondary",
                                 onclick: move |_| { h_save_qr() },
                                 i { "bookmark" }
