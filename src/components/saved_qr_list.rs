@@ -35,7 +35,7 @@ pub fn SavedQrList(
 
     let h_edit_qr = {
         move |qr: SavedQr| async move {
-            let mut qr = qr.clone();
+            let qr = qr.clone();
             ui.set(UIQr {
                 id: qr.id.clone(),
                 text: qr.text.clone(),

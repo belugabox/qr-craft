@@ -13,20 +13,15 @@ impl Default for MarginEnabled {
 }
 
 /// Type de logo disponible
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub enum LogoId {
+    #[default]
     None,
     Facebook,
     FacebookColor,
     WhatsApp,
     WhatsAppColor,
     InstagramColor,
-}
-
-impl Default for LogoId {
-    fn default() -> Self {
-        LogoId::None
-    }
 }
 
 impl LogoId {

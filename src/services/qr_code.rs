@@ -1,15 +1,20 @@
+//! Service pour la génération et la gestion des QR codes
+//! Inclut le support des logos SVG avec conversion de couleurs appropriée
+
 use dioxus::prelude::*;
-/// Render a QR code into PNG bytes.
-use image::ImageEncoder;
-#[allow(unused_imports)]
-use std::fs;
-#[allow(unused_imports)]
-use std::path::Path;
+use image::{GenericImageView, ImageEncoder};
 
 use crate::models::qr_code::{LogoId, MarginEnabled, SavedQr};
-use image::GenericImageView;
 
-// Helpers for SVG rasterization
+use std::fs;
+use std::path::Path;
+
+/// Détecte si les bytes donnés correspondent à un fichier SVG
+/// en vérifiant les marqueurs XML typiques d'un SVG
+///
+/// Note : Cette fonction est utilisée par `render_qr_png_bytes` qui est appelée
+/// via la macro `#[server]`, donc l'analyseur statique ne peut pas détecter son utilisation.
+#[allow(dead_code)]
 fn is_svg_bytes(bytes: &[u8]) -> bool {
     if bytes.is_empty() {
         return false;
@@ -22,33 +27,30 @@ fn is_svg_bytes(bytes: &[u8]) -> bool {
     false
 }
 
+/// Rasterise un SVG en image RGBA avec dé-premultiplication des couleurs
+///
+/// Note : Cette fonction est utilisée par `render_qr_png_bytes` qui est appelée
+/// via la macro `#[server]`, donc l'analyseur statique ne peut pas détecter son utilisation.
+#[allow(dead_code)]
 fn rasterize_svg_to_rgba(
     svg_bytes: &[u8],
     target_size: u32,
-    logo_id: &LogoId,
+    _logo_id: &LogoId,
 ) -> Result<image::RgbaImage, String> {
     use resvg::tiny_skia::Pixmap;
     use resvg::usvg::{FitTo, ImageRendering, Options, ShapeRendering, TextRendering, Tree};
 
     let svg_str = std::str::from_utf8(svg_bytes).map_err(|e| e.to_string())?;
 
-    // Remplacer currentColor par la couleur appropriée selon le logo
-    let processed_svg = match logo_id {
-        LogoId::Facebook => svg_str.replace("currentColor", "#000000"), // Noir pour Facebook monochrome
-        LogoId::FacebookColor => svg_str.replace("currentColor", "#1877F2"), // Bleu Facebook officiel
-        LogoId::WhatsApp => svg_str.replace("currentColor", "#000000"), // Noir pour WhatsApp monochrome
-        LogoId::WhatsAppColor => svg_str.replace("currentColor", "#25D366"), // Vert WhatsApp officiel
-        LogoId::InstagramColor => svg_str.replace("currentColor", "#E4405F"), // Rose Instagram officiel
-        LogoId::None => svg_str.replace("currentColor", "#000000"),           // Noir par défaut
+    // Configurer les options de rendu pour une qualité maximale
+    let opt = Options {
+        shape_rendering: ShapeRendering::CrispEdges,
+        text_rendering: TextRendering::OptimizeSpeed,
+        image_rendering: ImageRendering::OptimizeQuality,
+        ..Default::default()
     };
 
-    // Configurer les options pour une qualité maximale
-    let mut opt = Options::default();
-    opt.shape_rendering = ShapeRendering::CrispEdges;
-    opt.text_rendering = TextRendering::OptimizeSpeed; // ou OptimizeLegibility
-    opt.image_rendering = ImageRendering::OptimizeQuality;
-
-    let tree = Tree::from_str(&processed_svg, &opt).map_err(|e| e.to_string())?;
+    let tree = Tree::from_str(svg_str, &opt).map_err(|e| e.to_string())?;
 
     // Utiliser un supersampling pour une meilleure qualité
     // Rendre à 2x la taille puis réduire pour un meilleur anti-aliasing
@@ -66,18 +68,33 @@ fn rasterize_svg_to_rgba(
     )
     .ok_or("failed to render svg")?;
 
-    // Convertir tiny-skia Pixmap (BGRA) en image::RgbaImage (RGBA)
+    // Convertir de tiny-skia Pixmap (RGBA premultiplied) vers image::RgbaImage (RGBA straight)
+    // tiny-skia utilise des couleurs premultiplied (RGB × alpha), il faut les dé-premultiplier
+    // pour obtenir les couleurs originales correctes
     let data = pixmap.data();
     let mut high_res = Vec::with_capacity((render_size * render_size * 4) as usize);
     for chunk in data.chunks_exact(4) {
-        let b = chunk[0];
+        let r = chunk[0];
         let g = chunk[1];
-        let r = chunk[2];
+        let b = chunk[2];
         let a = chunk[3];
-        high_res.push(r);
-        high_res.push(g);
-        high_res.push(b);
-        high_res.push(a);
+
+        // Dé-premultiplier les couleurs si alpha > 0
+        if a > 0 {
+            let alpha_f = a as f32 / 255.0;
+            let r_unpremul = ((r as f32 / alpha_f).min(255.0)) as u8;
+            let g_unpremul = ((g as f32 / alpha_f).min(255.0)) as u8;
+            let b_unpremul = ((b as f32 / alpha_f).min(255.0)) as u8;
+            high_res.push(r_unpremul);
+            high_res.push(g_unpremul);
+            high_res.push(b_unpremul);
+            high_res.push(a);
+        } else {
+            high_res.push(0);
+            high_res.push(0);
+            high_res.push(0);
+            high_res.push(0);
+        }
     }
 
     // Créer l'image haute résolution
@@ -203,14 +220,31 @@ pub async fn delete_saved(filename: String) -> Result<(), ServerFnError> {
     Ok(())
 }
 
+/// Génère un QR code au format PNG avec support optionnel d'un logo
+///
+/// # Arguments
+/// * `text` - Le texte à encoder dans le QR code
+/// * `size` - La taille minimale du QR code en pixels
+/// * `transparent` - Si true, le fond sera transparent
+/// * `margin` - Active ou désactive la marge autour du QR code
+/// * `logo_bytes` - Bytes optionnels du logo (SVG ou format image raster)
+/// * `logo_id` - Type de logo pour le traitement des couleurs SVG
+/// * `logo_ratio` - Fraction de la largeur du QR occupée par le logo (ex: 0.2 = 20%)
+///
+/// # Retour
+/// Retourne un `Vec<u8>` contenant les bytes du PNG généré
+///
+/// Note : Cette fonction publique est appelée par `generate_qr_code` qui utilise
+/// la macro `#[server]`, donc l'analyseur statique ne peut pas détecter son utilisation.
+#[allow(dead_code)]
 pub fn render_qr_png_bytes(
     text: &str,
     size: u32,
     transparent: bool,
     margin: MarginEnabled,
-    logo_bytes: Option<&[u8]>, // optionnel : bytes du logo (SVG ou raster)
-    logo_id: Option<LogoId>,   // optionnel : type de logo pour la couleur SVG
-    logo_ratio: f64,           // fraction de la largeur du QR (0.2 = 20%)
+    logo_bytes: Option<&[u8]>,
+    logo_id: Option<LogoId>,
+    logo_ratio: f64,
 ) -> Result<Vec<u8>, String> {
     if text.is_empty() {
         return Err("Le texte ne peut pas être vide.".into());
@@ -233,10 +267,10 @@ pub fn render_qr_png_bytes(
     let width = image.width();
     let height = image.height();
 
-    // Consume the image and get the raw container.
+    // Extraire les données brutes de l'image
     let raw = image.into_raw();
 
-    // Determine channels per pixel (must divide evenly)
+    // Déterminer le nombre de canaux par pixel
     let total = raw.len() as u32;
     if width == 0 || height == 0 {
         return Err("invalid image dimensions".into());
@@ -246,7 +280,7 @@ pub fn render_qr_png_bytes(
         return Err("unexpected raw buffer length".into());
     }
 
-    // Rebuild une image RGBA mut (pour overlay facile)
+    // Reconstruire une image RGBA mutable pour permettre l'ajout du logo
     let mut base_rgba: image::RgbaImage = match pixels {
         4 => image::RgbaImage::from_raw(width, height, raw)
             .ok_or("failed to construct RGBA image from raw")?,
@@ -263,7 +297,7 @@ pub fn render_qr_png_bytes(
         _ => return Err("unsupported number of channels".into()),
     };
 
-    // Si on a un logo, le charger (PNG/JPEG) ou rasteriser l'SVG, redimensionner et le dessiner centré
+    // Traitement du logo si présent : chargement, rasterisation SVG, redimensionnement et overlay
     if let Some(logo_bytes) = logo_bytes {
         // Protéger logo_ratio et éviter dimension 0
         let ratio = if logo_ratio > 0.0 && logo_ratio < 1.0 {
@@ -272,11 +306,10 @@ pub fn render_qr_png_bytes(
             0.2
         };
 
-        // Charger le logo depuis les bytes (PNG/JPEG ou SVG)
+        // Charger le logo : détection automatique du format (SVG ou image raster)
         let logo_img: image::DynamicImage = if is_svg_bytes(logo_bytes) {
-            // Calculer la taille cible du logo pour rasteriser le SVG directement
+            // Pour les SVG : calculer la taille cible et rasteriser directement
             let logo_w = ((width as f64) * ratio).max(1.0).round() as u32;
-            // Rasteriser l'SVG directement à la taille cible pour éviter le redimensionnement
             let rgba_img = rasterize_svg_to_rgba(
                 logo_bytes,
                 logo_w,
@@ -284,7 +317,7 @@ pub fn render_qr_png_bytes(
             )?;
             image::DynamicImage::ImageRgba8(rgba_img)
         } else {
-            // Charger PNG/JPEG normalement
+            // Pour les images raster : chargement standard (PNG/JPEG/etc.)
             image::load_from_memory(logo_bytes).map_err(|e| e.to_string())?
         };
         let (lw, lh) = logo_img.dimensions();
@@ -314,26 +347,26 @@ pub fn render_qr_png_bytes(
         let x = (width.saturating_sub(logo_w)) / 2;
         let y = (height.saturating_sub(logo_h)) / 2;
 
-        // Améliorer le fond blanc : plus subtil et mieux adapté
+        // Ajout d'un fond blanc derrière le logo pour améliorer la lisibilité du QR code
         {
-            // Créer un fond légèrement plus grand que le logo avec des bords arrondis
+            // Créer un fond légèrement plus grand que le logo
             let pad = (logo_w.max(logo_h) as f32 * 0.08).max(2.0).round() as i32;
             let bg_w = (logo_w as i32 + pad).max(1) as u32;
             let bg_h = (logo_h as i32 + pad).max(1) as u32;
             let bg_x = x.saturating_sub((pad / 2) as u32);
             let bg_y = y.saturating_sub((pad / 2) as u32);
 
-            // Utiliser un blanc légèrement transparent pour un meilleur contraste
-            let bg_color = image::Rgba([255, 255, 255, 240]); // Légèrement transparent
+            // Blanc légèrement transparent pour un meilleur rendu visuel
+            let bg_color = image::Rgba([255, 255, 255, 240]);
             let bg = image::RgbaImage::from_pixel(bg_w, bg_h, bg_color);
             image::imageops::overlay(&mut base_rgba, &bg, bg_x as i64, bg_y as i64);
         }
 
-        // Enfin overlay du logo (respecte l'alpha)
+        // Appliquer le logo sur le QR code (avec respect du canal alpha)
         image::imageops::overlay(&mut base_rgba, &logo_rgba, x as i64, y as i64);
     }
 
-    // Encoder en PNG (RGBA8)
+    // Encodage final au format PNG
     let mut buffer = Vec::new();
     let encoder = image::codecs::png::PngEncoder::new(&mut buffer);
     // consommer base_rgba pour récupérer les octets
