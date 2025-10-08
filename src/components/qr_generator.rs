@@ -49,12 +49,6 @@ pub fn QrGenerator(
                 return;
             }
 
-            let _base64 = image_data
-                .split_once(',')
-                .map(|(_, b64)| b64)
-                .unwrap_or(&image_data)
-                .to_string();
-
             let saved_q = SavedQr {
                 id: cur.id.clone(),
                 text: cur.text.clone(),
@@ -116,42 +110,46 @@ pub fn QrGenerator(
                     }
                     div { class: "s8 padding",
                         div { class: "row",
-                            // Logo selector
-                            div { class: "field label border max",
-                                label { class: "active", "Logo (optionnel)" }
-                                select {
-                                    value: "{ui.read().logo_id.as_select_value()}",
-                                    onchange: move |e| {
-                                        let mut v = (*ui.read()).clone();
-                                        v.logo_id = LogoId::from_select_value(&e.value());
-                                        ui.set(v);
-                                    },
-                                    option { value: "", "Aucun" }
-                                    option { value: "facebook", "Facebook" }
-                                    option { value: "whatsapp", "WhatsApp" }
-                                    option { value: "facebook_color", "Facebook (coloré)" }
-                                    option { value: "whatsapp_color", "WhatsApp (coloré)" }
-                                    option { value: "instagram_color", "Instagram (coloré)" }
-                                }
-                                i { "arrow_drop_down" }
-                            }
-                            div { class: "field label suffix border",
-                                label { class: "active", "Taille logo" }
-                                input {
-                                    r#type: "range",
-                                    min: "0",
-                                    max: "0.5",
-                                    step: "0.01",
-                                    value: "{ui.read().logo_ratio}",
-                                    oninput: move |e| {
-                                        if let Ok(v) = e.value().parse::<f64>() {
-                                            let mut ui_val = (*ui.read()).clone();
-                                            ui_val.logo_ratio = v;
-                                            ui.set(ui_val);
+                            fieldset {
+                                legend { "Logo" }
+                                div { class: "row",
+                                    div { class: "field suffix label border",
+                                        label { class: "active", "Logo" }
+                                        select {
+                                            value: "{ui.read().logo_id.as_select_value()}",
+                                            onchange: move |e| {
+                                                let mut v = (*ui.read()).clone();
+                                                v.logo_id = LogoId::from_select_value(&e.value());
+                                                ui.set(v);
+                                            },
+                                            option { value: "", "Aucun" }
+                                            option { value: "facebook", "Facebook" }
+                                            option { value: "whatsapp", "WhatsApp" }
+                                            option { value: "facebook_color", "Facebook (coloré)" }
+                                            option { value: "whatsapp_color", "WhatsApp (coloré)" }
+                                            option { value: "instagram_color", "Instagram (coloré)" }
                                         }
-                                    },
+                                        i { "arrow_drop_down" }
+                                    }
+                                    div { class: "field suffix label border",
+                                        label { class: "active", "Taille" }
+                                        select {
+                                            value: "{ui.read().logo_ratio}",
+                                            onchange: move |e| {
+                                                let mut v = (*ui.read()).clone();
+                                                v.logo_ratio = e.value().parse().unwrap_or(0.2);
+                                                ui.set(v);
+                                            },
+                                            option { value: 0.15, "Petit" }
+                                            option { value: 0.20, "Moyen" }
+                                            option { value: 0.25, "Grand" }
+                                        }
+                                        i { "arrow_drop_down" }
+                                    }
                                 }
                             }
+                        }
+                        div { class: "row",
                             div { class: "field label border max",
                                 input {
                                     r#type: "text",
